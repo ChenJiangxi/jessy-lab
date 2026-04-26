@@ -1,0 +1,18 @@
+node_modules
+dist
+.env.local
+.env
+.DS_Store
+*.log
+server/personal-site.db
+server/personal-site.db-journal
+server/personal-site.db-shm
+server/personal-site.db-wal
+
+# Build cache
+tsconfig.tsbuildinfo
+
+# Source video files — only the served face-video.webm needs to be in repo.
+public/face-video.mov
+public/face-video.mp4
+

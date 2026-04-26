@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Fluid from '../scene/Fluid';
 import LineBackdrop from '../scene/LineBackdrop';
 import VideoHead from '../scene/VideoHead';
 import { streamChat } from '../lib/chat';
@@ -281,9 +280,6 @@ export default function V2() {
         if (e.target === e.currentTarget) inputRef.current?.focus();
       }}
     >
-      {/* Fluid is kept around but hidden behind the scan-line backdrop;
-          uncomment to bring back the warm fluid look. */}
-      {false && <Fluid />}
       <LineBackdrop excludeRect={chatRect} />
 
       {/* vignette — focuses center */}

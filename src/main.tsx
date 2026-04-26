@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
-import Minimal from './routes/Minimal';
 import Admin from './routes/Admin';
 import V2 from './routes/V2';
 import Placeholder from './routes/Placeholder';
@@ -50,7 +49,6 @@ const router = createBrowserRouter([
       />
     ),
   },
-  { path: '/minimal', element: <Minimal /> },
   { path: '/admin', element: <Admin /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

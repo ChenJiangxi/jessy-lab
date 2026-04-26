@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import { chatApiPlugin } from './server/chat-plugin';
 import { ttsApiPlugin } from './server/tts-plugin';
 import { adminApiPlugin } from './server/admin-plugin';
-import { faceTapeApiPlugin } from './server/face-tape-plugin';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -12,13 +11,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [
-      react(),
-      chatApiPlugin(),
-      ttsApiPlugin(),
-      adminApiPlugin(),
-      faceTapeApiPlugin(),
-    ],
+    plugins: [react(), chatApiPlugin(), ttsApiPlugin(), adminApiPlugin()],
     server: {
       port: 5173,
       // Allow the production domain when this same dev server runs

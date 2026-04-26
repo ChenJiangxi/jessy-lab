@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import LiveHead from '../scene/LiveHead';
-import TapeHead from '../scene/TapeHead';
-import { loadTape, saveTape, type FaceTape } from '../lib/face-tape';
 
 /**
  * Soul editor — paste a key, edit the agent's `systemPrompt` and `memory`.
@@ -27,12 +24,6 @@ export default function Admin() {
   const [verifying, setVerifying] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const keyInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Face tape state
-  const [tape, setTape] = useState<FaceTape | null>(null);
-  const [tapeMode, setTapeMode] = useState<'preview' | 'live'>('preview');
-  const [tapeError, setTapeError] = useState<string | null>(null);
-  const [tapeSaveStatus, setTapeSaveStatus] = useState<SaveStatus>('idle');
 
   useEffect(() => {
     const saved = localStorage.getItem(KEY_STORAGE);
@@ -60,16 +51,6 @@ export default function Admin() {
         if (aborted) return;
         setSystemPrompt(json.systemPrompt);
         setMemory(json.memory);
-
-        // Load any existing tape so admin can preview / re-record.
-        const existing = await loadTape();
-        if (aborted) return;
-        if (existing) {
-          setTape(existing);
-          setTapeMode('preview');
-        } else {
-          setTapeMode('live');
-        }
         setView('editor');
       } catch {
         if (aborted) return;
@@ -137,24 +118,7 @@ export default function Admin() {
     setKeyInput('');
     setSystemPrompt('');
     setMemory('');
-    setTape(null);
     setView('gate');
-  };
-
-  const handleTapeRecorded = async (t: FaceTape) => {
-    if (!adminKey) return;
-    setTapeError(null);
-    setTapeSaveStatus('saving');
-    const result = await saveTape(t, adminKey);
-    if (result.ok) {
-      setTape(t);
-      setTapeMode('preview');
-      setTapeSaveStatus('saved');
-    } else {
-      setTapeError(result.error);
-      setTapeSaveStatus('error');
-    }
-    window.setTimeout(() => setTapeSaveStatus('idle'), 1800);
   };
 
   return (
@@ -247,66 +211,6 @@ export default function Admin() {
                 placeholder="例如：今天有人在邮件里问起 AuraMate；最近在读《重新思考》；本周想推进 FateCouncil 的 onboarding…"
                 className="w-full bg-white/50 border border-ink/30 text-[13px] font-mono text-ink p-3 outline-none resize-y leading-relaxed focus:border-neon-magenta transition-colors placeholder:text-ink-faint"
               />
-            </Section>
-
-            <Section title="FACE_TAPE" subtitle="recorded mesh animation — plays while she speaks">
-              <div className="flex flex-col md:flex-row gap-5 items-start bg-black/90 p-4">
-                <div
-                  className="shrink-0 mx-auto md:mx-0"
-                  style={{ width: 240, aspectRatio: '4 / 5' }}
-                >
-                  {tapeMode === 'preview' && tape ? (
-                    <TapeHead tape={tape} playing={true} />
-                  ) : (
-                    <LiveHead onTapeRecorded={handleTapeRecorded} />
-                  )}
-                </div>
-                <div className="flex-1 space-y-3 text-paper">
-                  <div className="font-mono text-[11px] tracking-[0.2em] uppercase text-paper/70">
-                    {tape
-                      ? `${tape.frameCount} frames @ ${tape.fps}fps · ${(
-                          tape.frameCount / tape.fps
-                        ).toFixed(1)}s`
-                      : 'no tape recorded yet'}
-                  </div>
-                  <p className="font-zh text-[12px] text-paper/60 leading-relaxed">
-                    {tapeMode === 'preview'
-                      ? '当前是回放预览。点 RE-RECORD 重新录一段。访客在主页发消息时这段会循环播放。'
-                      : '点摄像头里的 ● REC，倒数 3 秒后录 5 秒。说一段你愿意被反复看到的话。'}
-                  </p>
-                  {tape && tapeMode === 'preview' && (
-                    <button
-                      onClick={() => {
-                        setTapeError(null);
-                        setTapeMode('live');
-                      }}
-                      className="font-mono text-[10px] tracking-[0.3em] uppercase border border-paper/50 text-paper/85 hover:text-paper hover:border-paper px-4 py-2 transition-colors"
-                    >
-                      RE-RECORD
-                    </button>
-                  )}
-                  {tape && tapeMode === 'live' && (
-                    <button
-                      onClick={() => setTapeMode('preview')}
-                      className="font-mono text-[10px] tracking-[0.3em] uppercase border border-paper/30 text-paper/55 hover:text-paper/85 px-4 py-2 transition-colors"
-                    >
-                      CANCEL
-                    </button>
-                  )}
-                  {tapeSaveStatus !== 'idle' && (
-                    <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-paper/85">
-                      {tapeSaveStatus === 'saving' && 'SAVING…'}
-                      {tapeSaveStatus === 'saved' && 'SAVED ✓'}
-                      {tapeSaveStatus === 'error' && 'ERROR — RETRY'}
-                    </div>
-                  )}
-                  {tapeError && (
-                    <div className="font-mono text-[10px] tracking-[0.2em] text-rose-300/80 break-all">
-                      {tapeError}
-                    </div>
-                  )}
-                </div>
-              </div>
             </Section>
 
             <div className="flex items-center justify-between">

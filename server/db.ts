@@ -43,14 +43,6 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_chat_messages_session
     ON chat_messages(session_id, created_at);
-
-  CREATE TABLE IF NOT EXISTS face_tape (
-    id          INTEGER PRIMARY KEY,
-    fps         INTEGER NOT NULL,
-    frame_count INTEGER NOT NULL,
-    data        BLOB NOT NULL,
-    updated_at  INTEGER NOT NULL
-  );
 `);
 
 const DEFAULT_NAME = 'default';
@@ -128,47 +120,6 @@ export function loadMessages(sessionId: string, limit = 50): StoredMessage[] {
 
 export function clearMessages(sessionId: string): void {
   db.prepare(`DELETE FROM chat_messages WHERE session_id = ?`).run(sessionId);
-}
-
-export type FaceTapeRow = {
-  fps: number;
-  frameCount: number;
-  data: Buffer;
-  updatedAt: number;
-};
-
-export function getFaceTape(): FaceTapeRow | null {
-  const row = db
-    .prepare(
-      `SELECT fps, frame_count, data, updated_at FROM face_tape WHERE id = 1`,
-    )
-    .get() as
-    | { fps: number; frame_count: number; data: Buffer; updated_at: number }
-    | undefined;
-  if (!row) return null;
-  return {
-    fps: row.fps,
-    frameCount: row.frame_count,
-    data: row.data,
-    updatedAt: row.updated_at,
-  };
-}
-
-export function upsertFaceTape(input: {
-  fps: number;
-  frameCount: number;
-  data: Buffer;
-}): void {
-  const now = Date.now();
-  db.prepare(
-    `INSERT INTO face_tape (id, fps, frame_count, data, updated_at)
-     VALUES (1, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       fps         = excluded.fps,
-       frame_count = excluded.frame_count,
-       data        = excluded.data,
-       updated_at  = excluded.updated_at`,
-  ).run(input.fps, input.frameCount, input.data, now);
 }
 
 export { db };

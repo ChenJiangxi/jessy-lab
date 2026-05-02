@@ -1,38 +1,30 @@
 import { useEffect, useRef } from 'react';
 
 type Props = {
-  src?: string;
   playing?: boolean;
   className?: string;
 };
 
 /**
- * Real-video avatar. The default source is `/face-video.webm` — a VP9
- * video with a true alpha channel (yuva420p), so the recorded background
- * is transparent and the LineBackdrop behind shows through. While
- * `playing` is true, plays on loop. When false, pauses and rewinds to
- * frame 0 so the head settles on a neutral pose. Muted so the page's
- * TTS audio is the only voice the visitor hears.
+ * Real-video avatar. Two alpha-channel sources are offered: a VP9-alpha
+ * webm (Chrome / Firefox / Edge) and an HEVC-alpha hvc1 mov (Safari, iOS).
+ * The recorded black backdrop is chroma-keyed out at encode time and the
+ * alpha plane is gaussian-feathered so the silhouette dissolves into the
+ * LineBackdrop instead of reading as a rectangle. A radial CSS mask
+ * additionally softens the chest/neck area where the body extends to the
+ * bottom of the source frame.
  */
-export default function VideoHead({
-  src = '/face-video.webm',
-  playing = false,
-  className,
-}: Props) {
+export default function VideoHead({ playing = false, className }: Props) {
   const ref = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
     if (playing) {
-      // Some browsers reject play() if the gesture chain is broken;
-      // it's fine to ignore — the next user-gesture turn will retry.
       const p = v.play();
       if (p && typeof p.catch === 'function') p.catch(() => {});
     } else {
       v.pause();
-      // Reset so the next "speaking" turn starts from the neutral frame
-      // and we don't freeze on a mid-talk mouth shape.
       try {
         v.currentTime = 0;
       } catch {
@@ -41,10 +33,15 @@ export default function VideoHead({
     }
   }, [playing]);
 
+  // Tight fade only at the very bottom — just enough to round off the
+  // chest cutoff at the bottom of the source frame without making the
+  // whole figure read as "floating." Alpha handles the other three sides.
+  const softMask =
+    'linear-gradient(to bottom, black 0%, black 88%, transparent 100%)';
+
   return (
     <video
       ref={ref}
-      src={src}
       muted
       playsInline
       loop
@@ -57,14 +54,16 @@ export default function VideoHead({
           : {
               objectFit: 'cover',
               objectPosition: '50% 22%',
-              // Soft-fade the bottom so dark clothing dissolves into the
-              // backdrop instead of reading as a hard rectangle edge.
-              maskImage:
-                'linear-gradient(to bottom, black 0%, black 68%, transparent 100%)',
-              WebkitMaskImage:
-                'linear-gradient(to bottom, black 0%, black 68%, transparent 100%)',
+              maskImage: softMask,
+              WebkitMaskImage: softMask,
             }
       }
-    />
+    >
+      {/* webm first so Chrome / Firefox / Edge grab the smaller VP9-alpha
+          file. Safari (incl. iOS) doesn't support webm and falls through
+          to the hvc1 mov, which carries an HEVC alpha plane. */}
+      <source src="/face-video.webm" type='video/webm; codecs="vp9"' />
+      <source src="/face-video.mov" type='video/quicktime; codecs="hvc1"' />
+    </video>
   );
 }

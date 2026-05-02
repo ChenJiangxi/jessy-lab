@@ -16,3 +16,6 @@ tsconfig.tsbuildinfo
 public/face-video.mov
 public/face-video.mp4
 
+# Local working scrap (raw source videos / intermediate PNGs / voice samples).
+archive/
+

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import LineBackdrop from '../scene/LineBackdrop';
+import AmbientBackdrop from '../scene/AmbientBackdrop';
 import VideoHead from '../scene/VideoHead';
 import { streamChat } from '../lib/chat';
 import { getSessionId } from '../lib/session';
@@ -8,13 +8,38 @@ import { speak, stopAudio, unlockAudio } from '../lib/tts';
 
 type Turn = { role: 'user' | 'assistant'; content: string };
 
-/** Starter chips shown above the input when the chat is empty. */
-const SUGGESTIONS = [
+/**
+ * Starter chip pool — shown only on cold-start (no messages yet). On
+ * each fresh page load we pick 4 at random from this pool. Chips
+ * disappear permanently after the visitor sends their first message —
+ * they're a cold-start affordance, not a persistent UI element.
+ */
+const SUGGESTIONS_POOL = [
   '聊聊你自己',
   'AuraMate 是什么',
   '凌晨三点你在想什么',
   'Tears in Rain',
+  '最近在看什么',
+  '怎么看这波 AI',
+  '命理是迷信吗',
+  '王家卫哪部最爱',
+  '推荐一首歌',
+  '你做研究在做什么',
+  '想跟你 vibe coding',
+  '你今天颓废吗',
+  'PhD 是什么感觉',
+  '台州人在上海开心吗',
 ];
+
+/** Pick N items from arr without repeats — used for the chip rotation. */
+function sampleN<T>(arr: T[], n: number): T[] {
+  const copy = arr.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+  }
+  return copy.slice(0, n);
+}
 
 /* Pacing: emit at ~33 chars/sec; pause harder on sentence-end. */
 const BASE_DELAY_MS = 30;
@@ -54,13 +79,9 @@ export default function V2() {
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const chatPanelRef = useRef<HTMLDivElement | null>(null);
-  const [chatRect, setChatRect] = useState<{
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  } | null>(null);
+
+  // 4 starter chips picked once per page load — stable until refresh.
+  const suggestions = useMemo(() => sampleN(SUGGESTIONS_POOL, 4), []);
 
   // Pacing buffer
   const pendingRef = useRef<string>('');
@@ -99,24 +120,6 @@ export default function V2() {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns, streaming]);
-
-  // Measure the chat panel so the backdrop can carve a hole around it.
-  useEffect(() => {
-    const measure = () => {
-      const el = chatPanelRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      setChatRect({ x: r.left, y: r.top, w: r.width, h: r.height });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (chatPanelRef.current) ro.observe(chatPanelRef.current);
-    window.addEventListener('resize', measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, []);
 
   // Keep streamingRef in sync with state.
   useEffect(() => {
@@ -273,182 +276,255 @@ export default function V2() {
   };
 
 
+  // Unified status indicator — drives the thin line under the avatar and
+  // the top-right HUD dot. Cool-blue when idle so the loud pink dot from
+  // the previous design doesn't fight the figure's own rim light.
+  const statusText = speaking ? 'SPEAKING' : streaming ? 'COMPOSING' : 'STANDBY';
+  const statusColor = speaking ? '#f5b8d6' : streaming ? '#c8a5ff' : '#7ec5ff';
+
   return (
     <div
-      className="fixed inset-0 overflow-hidden bg-[#1a1525] text-[#f0e8dc] select-none"
+      className="fixed inset-0 overflow-hidden bg-[#06030f] text-[#f4ecdc] select-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) inputRef.current?.focus();
       }}
     >
-      <LineBackdrop excludeRect={chatRect} />
+      <AmbientBackdrop />
 
-      {/* vignette — focuses center */}
+      {/* vignette */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none z-10"
         style={{
           background:
-            'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)',
+            'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.62) 100%)',
         }}
       />
 
-      {/* ── HUD: top-left brand ─────────────────────────── */}
-      <div className="absolute top-6 left-7 pointer-events-none z-30">
-        <div
-          className="font-mono font-light text-[#f0e8dc]"
-          style={{ fontSize: 26, letterSpacing: '0.18em' }}
+      {/* hairline scanlines — 0.04 alpha, only over the dark backdrop */}
+      <div
+        className="absolute inset-0 pointer-events-none z-10"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, rgba(200,165,255,0.045) 0 1px, transparent 1px 3px)',
+          mixBlendMode: 'overlay',
+        }}
+      />
+
+      {/* HUD corner brackets — 4 minimal Ls at the viewport corners */}
+      {[
+        { cls: 'top-3 left-3', rot: 0 },
+        { cls: 'top-3 right-3', rot: 90 },
+        { cls: 'bottom-3 right-3', rot: 180 },
+        { cls: 'bottom-3 left-3', rot: 270 },
+      ].map((c, i) => (
+        <svg
+          key={i}
+          aria-hidden
+          width="18"
+          height="18"
+          viewBox="0 0 18 18"
+          className={`absolute ${c.cls} pointer-events-none z-20`}
+          style={{ transform: `rotate(${c.rot}deg)` }}
         >
-          JESSY
-        </div>
-        <div className="mt-1 font-mono text-[10px] tracking-[0.4em] text-[#f0e8dc]/55">
+          <path
+            d="M0 13 L0 0 L13 0"
+            fill="none"
+            stroke="rgba(244,236,220,0.32)"
+            strokeWidth="0.9"
+          />
+        </svg>
+      ))}
+
+      {/* ── HUD: top-left brand ─────────────────────────── */}
+      <div className="absolute top-5 left-6 pointer-events-none z-30">
+        <span
+          style={{
+            fontFamily:
+              'ui-serif, "Cormorant Garamond", Garamond, "Times New Roman", serif',
+            fontStyle: 'italic',
+            fontWeight: 400,
+            fontSize: 32,
+            letterSpacing: '0.01em',
+            color: '#f4ecdc',
+            lineHeight: 1,
+          }}
+        >
+          Jessy
+        </span>
+        <div className="mt-2 font-mono text-[9.5px] tracking-[0.45em] text-[#f4ecdc]/45">
           DIGITAL SELF
         </div>
         <div
-          className="mt-2 h-px w-10"
+          className="mt-2 h-px w-12"
           style={{
             background:
-              'linear-gradient(90deg, rgba(255,120,200,0.7), rgba(120,160,255,0.4) 60%, transparent)',
+              'linear-gradient(90deg, rgba(245,184,214,0.7), rgba(200,165,255,0.45) 50%, rgba(126,197,255,0.55) 90%, transparent)',
           }}
         />
       </div>
 
       {/* ── HUD: top-right · time + status (desktop only) ── */}
-      <div className="absolute top-6 right-7 text-right pointer-events-none font-mono text-[10px] tracking-[0.30em] text-[#f0e8dc]/65 hidden md:block z-30">
-        <div className="flex items-center justify-end gap-2">
+      <div className="absolute top-6 right-6 text-right pointer-events-none font-mono text-[10px] tracking-[0.32em] text-[#f4ecdc]/60 hidden md:block z-30">
+        <div className="flex items-center justify-end gap-2.5">
           <span
             className="inline-block w-1.5 h-1.5 rounded-full"
             style={{
-              background: '#ff6cb6',
-              boxShadow: '0 0 8px 1px #ff6cb6',
-              animation: 'v2_pulse 1.6s ease-in-out infinite',
+              background: statusColor,
+              boxShadow: `0 0 8px ${statusColor}`,
+              animation: 'v2_pulse 1.8s ease-in-out infinite',
             }}
           />
-          <span className="text-[#f0e8dc]/85">{time}</span>
-          <span className="text-[#f0e8dc]/40">SHA-03</span>
-          <span className="text-[#7ab8ff]">ONLINE</span>
+          <span className="text-[#f4ecdc]/82 tabular-nums">{time}</span>
+          <span className="text-[#f4ecdc]/30">·</span>
+          <span style={{ color: statusColor }}>{statusText}</span>
         </div>
       </div>
 
       {/* ── HUD: bottom-right page nav (desktop only) ───── */}
-      <div className="absolute bottom-7 right-7 font-mono text-[10px] tracking-[0.32em] uppercase pointer-events-auto hidden md:block z-30">
-        <Link to="/projects" className="text-[#f0e8dc]/45 hover:text-[#7ab8ff] transition-colors">PROJECTS</Link>
-        <span className="mx-2 text-[#f0e8dc]/20">/</span>
-        <Link to="/research" className="text-[#f0e8dc]/45 hover:text-[#7ab8ff] transition-colors">RESEARCH</Link>
-        <span className="mx-2 text-[#f0e8dc]/20">/</span>
+      <div className="absolute bottom-6 right-6 font-mono text-[10px] tracking-[0.32em] uppercase pointer-events-auto hidden md:block z-30">
+        <Link to="/projects" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">PROJECTS</Link>
+        <span className="mx-2 text-[#f4ecdc]/18">·</span>
+        <Link to="/arts" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">ARTS</Link>
+        <span className="mx-2 text-[#f4ecdc]/18">·</span>
         <a
-          href="https://github.com/ChenJiangxi"
+          href="https://chenjiangxi.github.io/home-page/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[#f0e8dc]/45 hover:text-[#7ab8ff] transition-colors"
+          className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors"
         >
-          GITHUB
+          RESEARCH
         </a>
-        <span className="mx-2 text-[#f0e8dc]/20">/</span>
-        <Link to="/contact" className="text-[#f0e8dc]/45 hover:text-[#7ab8ff] transition-colors">CONTACT</Link>
+        <span className="mx-2 text-[#f4ecdc]/18">·</span>
+        <Link to="/contact" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">CONTACT</Link>
       </div>
 
-
       {/* main column */}
-      <div className="absolute inset-0 flex flex-col items-center px-6 pt-[2vh] pb-[3vh]">
-        {/* head + halo. Bigger on mobile (60vw) so the face is the
-            primary subject; tighter on desktop where the chat panel
-            takes more attention. */}
+      <div className="absolute inset-0 flex flex-col items-center px-6 pt-[2vh] pb-[3vh] z-20">
+        {/* head — cyber HUD frame: chamfered (45°-cut) corner brackets,
+            edge tick marks, a slow vertical scan-sweep, and a small
+            telemetry rail to the right. Uses preserveAspectRatio="none"
+            with non-scaling strokes — viewBox 100×125 matches the 4:5
+            wrapper exactly so 45° cuts stay 45°. */}
         <div
           className="relative shrink-0 w-[min(280px,62vw)] md:w-[min(290px,26vw)]"
           style={{ aspectRatio: '4 / 5' }}
         >
-          {/* dotted ring with a 60° gap at the bottom. */}
+          <VideoHead playing={speaking} />
+
           <svg
             aria-hidden
-            viewBox="-50 -50 100 100"
-            className="absolute pointer-events-none"
-            style={{
-              left: '50%',
-              top: '45%',
-              transform: 'translate(-50%, -50%)',
-              width: '120%',
-              aspectRatio: '1 / 1',
-              overflow: 'visible',
-            }}
+            viewBox="0 0 100 125"
+            preserveAspectRatio="none"
+            className="absolute inset-0 w-full h-full pointer-events-none"
           >
-            <defs>
-              <linearGradient
-                id="v2-ring-grad"
-                x1="0%"
-                y1="50%"
-                x2="100%"
-                y2="50%"
-              >
-                <stop offset="0%" stopColor="rgba(255, 140, 220, 0.60)" />
-                <stop offset="50%" stopColor="rgba(180, 140, 255, 0.35)" />
-                <stop offset="100%" stopColor="rgba(140, 200, 255, 0.60)" />
-              </linearGradient>
-              <filter
-                id="v2-dot-glow"
-                x="-200%"
-                y="-200%"
-                width="500%"
-                height="500%"
-              >
-                <feGaussianBlur stdDeviation="0.9" result="b" />
-                <feMerge>
-                  <feMergeNode in="b" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {/* Dotted arc — 300° visible (60° = 1/6 hidden at bottom).
-                Endpoints at math angles 240° and 300° (SVG y=42.4). */}
-            <path
-              d="M 24.5 42.4 A 49 49 0 1 0 -24.5 42.4"
-              fill="none"
-              stroke="url(#v2-ring-grad)"
-              strokeWidth="0.2"
-              strokeDasharray="0 1.0"
-              strokeLinecap="round"
-            />
-            {/* Three highlight dots (left / top / right). Top dot
-                nudged 1.4 viewBox units left (~5px) so it visually
-                lands on the face's vertical centerline rather than
-                the geometric SVG center. */}
-            {[
-              { x: -49, y: 0, color: 'rgba(255, 150, 220, 0.98)' },
-              { x: -1.4, y: -49, color: 'rgba(180, 210, 255, 0.98)' },
-              { x: 49, y: 0, color: 'rgba(140, 200, 255, 0.98)' },
-            ].map((d, i) => (
-              <circle
-                key={i}
-                cx={d.x}
-                cy={d.y}
-                r={0.65}
-                fill={d.color}
-                filter="url(#v2-dot-glow)"
-                style={{
-                  animation: `v2_dot_pulse ${2.4 + i * 0.8}s ease-in-out infinite`,
-                }}
-              />
-            ))}
+            {/* chamfered corner brackets — pink on her left, blue on her
+                right. Top brighter than bottom (bottom sits in the body
+                fade region). */}
+            <path d="M 0 10 L 0 4 L 4 0 L 10 0"
+                  fill="none" strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(245,184,214,0.72)" />
+            <path d="M 90 0 L 96 0 L 100 4 L 100 10"
+                  fill="none" strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(126,197,255,0.72)" />
+            <path d="M 0 115 L 0 121 L 4 125 L 10 125"
+                  fill="none" strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(245,184,214,0.45)" />
+            <path d="M 90 125 L 96 125 L 100 121 L 100 115"
+                  fill="none" strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(126,197,255,0.45)" />
+
+            {/* targeting tick marks on the side edges */}
+            <line x1="0" y1="35" x2="3" y2="35"
+                  strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(245,184,214,0.55)" />
+            <line x1="0" y1="92" x2="3" y2="92"
+                  strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(245,184,214,0.40)" />
+            <line x1="100" y1="35" x2="97" y2="35"
+                  strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(126,197,255,0.55)" />
+            <line x1="100" y1="92" x2="97" y2="92"
+                  strokeWidth="1" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(126,197,255,0.40)" />
+
+            {/* center-axis cross-tick: tiny + at the eye line, the way a
+                HUD targeting reticle would lock on a face */}
+            <line x1="48" y1="36" x2="52" y2="36"
+                  strokeWidth="0.8" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(200,165,255,0.55)" />
+            <line x1="50" y1="34" x2="50" y2="38"
+                  strokeWidth="0.8" vectorEffect="non-scaling-stroke"
+                  stroke="rgba(200,165,255,0.55)" />
           </svg>
-          <VideoHead playing={speaking} />
+
+          {/* slow vertical scan-sweep — sweeps top to bottom every 6.4s,
+              fades in/out at the edges so it doesn't pop. */}
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 pointer-events-none"
+            style={{
+              height: 2,
+              top: 0,
+              background:
+                'linear-gradient(90deg, transparent 0%, rgba(200,165,255,0.50) 30%, rgba(245,184,214,0.55) 50%, rgba(126,197,255,0.50) 70%, transparent 100%)',
+              boxShadow: '0 0 10px rgba(200,165,255,0.40)',
+              animation: 'v2_scan 6.4s linear infinite',
+            }}
+          />
+
+          {/* right-side telemetry rail (desktop only) — three stacked
+              mono micro-readouts, positioned just outside the frame. */}
+          <div className="hidden md:block absolute top-[12%] -right-2 translate-x-full font-mono text-[8.5px] tracking-[0.18em] text-[#f4ecdc]/40 leading-[1.85] pointer-events-none whitespace-nowrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#7ec5ff]/70">·</span>
+              <span>BIO &nbsp;&nbsp;98.4%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#c8a5ff]/70">·</span>
+              <span>LNK &nbsp;&nbsp;ESTBL</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#f5b8d6]/70">·</span>
+              <span>FRQ &nbsp;&nbsp;2.40G</span>
+            </div>
+          </div>
         </div>
 
-        {/* avatar label — overlaps the bottom of the head/ring slightly
-            so the title sits right where the body fades out. */}
-        <div className="shrink-0 -mt-6 font-mono text-[11px] tracking-[0.35em] text-[#f0e8dc]/60 pointer-events-none relative z-10">
-          JESSY_DIGITAL_AGENT
-          <span className="mx-2 text-[#f0e8dc]/30">//</span>
-          <span className="text-[#7ab8ff]">ONLINE</span>
+        {/* status line — replaces the old JESSY_DIGITAL_AGENT label.
+            Sits in the breathing room between the head and the chat,
+            morphs between STANDBY / COMPOSING / SPEAKING. */}
+        <div className="shrink-0 mt-1 mb-2 flex items-center gap-3 font-mono text-[9.5px] tracking-[0.45em] text-[#f4ecdc]/45 pointer-events-none relative z-10">
+          <span
+            className="h-px w-10"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent, rgba(244,236,220,0.30))',
+            }}
+          />
+          <span
+            className="inline-block w-1 h-1 rounded-full"
+            style={{
+              background: statusColor,
+              boxShadow: `0 0 6px ${statusColor}`,
+              animation: 'v2_pulse 1.8s ease-in-out infinite',
+            }}
+          />
+          <span style={{ color: statusColor, opacity: 0.85 }}>{statusText}</span>
+          <span
+            className="h-px w-10"
+            style={{
+              background:
+                'linear-gradient(90deg, rgba(244,236,220,0.30), transparent)',
+            }}
+          />
         </div>
 
-        {/* chat panel: wraps both history + input so its bounding rect
-            is what LineBackdrop fades a streak-hole around. */}
-        <div
-          ref={chatPanelRef}
-          className="flex-1 w-full max-w-xl mt-3 flex flex-col items-center min-h-0"
-        >
+        {/* chat panel — wraps both history + input. */}
+        <div className="flex-1 w-full max-w-xl mt-1 flex flex-col items-center min-h-0">
           <div className="flex-1 w-full min-h-0 flex flex-col justify-end">
             <div
               ref={scrollRef}
-              className="overflow-y-auto px-1 space-y-3 pb-2 pointer-events-auto"
+              className="overflow-y-auto px-1 space-y-3.5 pb-2 pointer-events-auto"
               style={{
                 maxHeight: '100%',
                 maskImage:
@@ -460,16 +536,32 @@ export default function V2() {
               {turns.map((t, i) =>
                 t.role === 'user' ? (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[78%] rounded-2xl bg-[#6b4a8f]/35 px-3 py-1.5 md:px-3.5 md:py-2 font-sans text-[11.5px] md:text-[13px] text-[#f0e8dc]/90 leading-[1.55]">
+                    <div
+                      className="max-w-[78%] px-3.5 py-2 font-sans text-[12px] md:text-[13px] text-[#f4ecdc]/92 leading-[1.6]"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, rgba(245,184,214,0.10), rgba(200,165,255,0.06))',
+                        border: '1px solid rgba(245,184,214,0.20)',
+                        borderRadius: '14px 14px 4px 14px',
+                      }}
+                    >
                       {t.content}
                     </div>
                   </div>
                 ) : (
                   <div key={i} className="flex justify-start">
-                    <div className="max-w-[80%] rounded-2xl bg-[#f0e8dc]/[0.07] px-3 py-1.5 md:px-3.5 md:py-2 font-sans text-[12px] md:text-[13.5px] text-[#f0e8dc]/88 leading-[1.55] md:leading-[1.6]">
+                    <div
+                      className="max-w-[82%] px-3.5 py-2 font-sans text-[12px] md:text-[13.5px] text-[#f4ecdc]/88 leading-[1.6]"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, rgba(126,197,255,0.06), rgba(200,165,255,0.04))',
+                        border: '1px solid rgba(200,165,255,0.16)',
+                        borderRadius: '4px 14px 14px 14px',
+                      }}
+                    >
                       {t.content}
                       {streaming && i === turns.length - 1 && (
-                        <span className="inline-block w-[2px] h-[0.85em] ml-1 bg-[#f0e8dc]/85 align-middle animate-pulse" />
+                        <span className="inline-block w-[2px] h-[0.85em] ml-1 bg-[#c8a5ff]/85 align-middle animate-pulse" />
                       )}
                     </div>
                   </div>
@@ -478,80 +570,92 @@ export default function V2() {
             </div>
           </div>
 
-          {/* starter chips — always visible (sway-lab pattern) so they
-              double as quick prompts mid-conversation. Hidden only
-              while she's actively streaming a reply. */}
-          {!streaming && (
-            <div className="shrink-0 w-full mt-1 mb-1.5 md:mt-2 md:mb-3 flex flex-wrap gap-1.5 md:gap-2 justify-center pointer-events-auto">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => ask(s)}
-                  className="font-mono text-[10px] md:text-[11px] tracking-[0.06em] border border-[#f0e8dc]/20 hover:border-[#a0c0ff]/55 text-[#f0e8dc]/65 hover:text-[#f0e8dc] rounded-full px-3 py-1 md:px-3.5 md:py-1.5 transition-colors"
-                >
-                  {s}
-                </button>
+          {/* starter chips — only shown on cold-start (no turns yet).
+              Disappear after the visitor sends their first message. */}
+          {turns.length === 0 && !streaming && (
+            <div className="shrink-0 w-full mt-2.5 mb-2 flex flex-wrap gap-x-3 gap-y-1.5 justify-center items-center font-mono text-[10px] md:text-[10.5px] tracking-[0.12em] pointer-events-auto">
+              {suggestions.map((s, i) => (
+                <span key={s} className="flex items-center gap-x-3">
+                  <button
+                    type="button"
+                    onClick={() => ask(s)}
+                    className="text-[#f4ecdc]/50 hover:text-[#c8a5ff] transition-colors"
+                  >
+                    {s}
+                  </button>
+                  {i < suggestions.length - 1 && (
+                    <span className="text-[#f4ecdc]/15">·</span>
+                  )}
+                </span>
               ))}
             </div>
           )}
 
-          {/* input — same width as chat, gentler corner radius, gradient
-              border + circular send button. */}
+          {/* input — hairline border that picks up a violet→blue gradient
+              tint while focused. Smaller, calmer send button. */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               ask(input);
             }}
-            className="shrink-0 w-full mt-4"
+            className="shrink-0 w-full group"
           >
             <div
+              className="flex items-center gap-2 pl-4 pr-1.5 py-1.5 transition-all"
               style={{
-                borderRadius: 18,
-                padding: 1,
-                background:
-                  'linear-gradient(95deg, rgba(255,140,220,0.55), rgba(160,140,255,0.45) 45%, rgba(120,180,255,0.55))',
+                borderRadius: 16,
+                background: 'rgba(8,4,20,0.72)',
+                border: '1px solid rgba(244,236,220,0.16)',
+                boxShadow: 'inset 0 0 0 0 transparent',
+              }}
+              onFocus={(e) => {
+                (e.currentTarget as HTMLDivElement).style.borderColor =
+                  'rgba(200,165,255,0.55)';
+                (e.currentTarget as HTMLDivElement).style.boxShadow =
+                  '0 0 0 1px rgba(200,165,255,0.20), 0 0 24px -6px rgba(126,197,255,0.35)';
+              }}
+              onBlur={(e) => {
+                (e.currentTarget as HTMLDivElement).style.borderColor =
+                  'rgba(244,236,220,0.16)';
+                (e.currentTarget as HTMLDivElement).style.boxShadow =
+                  'inset 0 0 0 0 transparent';
               }}
             >
-              <div
-                className="flex items-center gap-3 pl-5 pr-2 py-1.5"
+              {/* leading prompt glyph — keeps the input feeling like
+                  a terminal line rather than a generic chat field. */}
+              <span className="font-mono text-[12px] text-[#c8a5ff]/55 select-none">›</span>
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={streaming}
+                placeholder={streaming ? '她在说…' : '与 Jessy 对话…'}
+                className="flex-1 bg-transparent outline-none font-mono text-[13px] tracking-[0.04em] text-[#f4ecdc] placeholder:text-[#f4ecdc]/28 disabled:opacity-50"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || streaming}
+                aria-label="send"
+                className="shrink-0 grid place-items-center w-8 h-8 rounded-full text-[#f4ecdc]/80 hover:text-[#c8a5ff] disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                 style={{
-                  borderRadius: 17,
-                  background: 'rgba(8, 4, 20, 0.78)',
+                  border: '1px solid rgba(244,236,220,0.22)',
                 }}
               >
-                <input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={streaming}
-                  placeholder={
-                    streaming ? '她在说…' : 'Ask Jessy anything...'
-                  }
-                  className="flex-1 bg-transparent outline-none font-mono text-[13px] tracking-[0.04em] text-[#f0e8dc] placeholder:text-[#f0e8dc]/30 disabled:opacity-50"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || streaming}
-                  aria-label="send"
-                  className="shrink-0 grid place-items-center w-9 h-9 rounded-full border border-[#f0e8dc]/30 text-[#f0e8dc]/85 hover:border-[#a0c0ff] hover:text-[#a0c0ff] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </button>
             </div>
             {error && (
               <div className="mt-2 font-mono text-[10px] tracking-[0.25em] text-rose-300/70">
@@ -570,6 +674,12 @@ export default function V2() {
         @keyframes v2_dot_pulse {
           0%, 100% { opacity: 0.55; }
           50%      { opacity: 1; }
+        }
+        @keyframes v2_scan {
+          0%   { top: 0%;   opacity: 0; }
+          5%   { opacity: 0.95; }
+          95%  { opacity: 0.95; }
+          100% { top: 100%; opacity: 0; }
         }
       `}</style>
     </div>

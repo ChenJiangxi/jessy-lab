@@ -2,6 +2,36 @@ import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 /**
+ * Profanity tokens that should never reach the TTS engine — Jessy may
+ * use them in chat text (her real WeChat voice), but synthesizing them
+ * with a clone of her actual voice would feel off. Stripped before send.
+ *
+ * Order matters: longer tokens first so substrings don't get partially
+ * matched. Word-boundaries don't apply cleanly across CJK + ASCII so we
+ * just do raw substring removal — false positives are vanishingly rare
+ * for this short list.
+ */
+const TTS_PROFANITY = [
+  '卧槽', 'woc', 'WOC', 'WoC',
+  'nmd', 'NMD', 'nm', 'NM',
+  '草', '艹',
+  'tmd', 'TMD', 'tm', 'TM',
+  'fuck', 'Fuck', 'FUCK', 'fk', 'FK',
+  'shit', 'Shit', 'SHIT',
+];
+
+function sanitizeForTTS(text: string): string {
+  let out = text;
+  for (const token of TTS_PROFANITY) {
+    // Replace each occurrence with a single space so the cadence is
+    // preserved — the TTS won't read silence as a hard cut.
+    out = out.split(token).join(' ');
+  }
+  // Collapse any runs of whitespace the splits may have created.
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+/**
  * /api/tts — proxy to MiniMax T2A v2 (international tier, api.minimax.io).
  *
  * Request: { text: string }
@@ -25,7 +55,7 @@ export function ttsApiPlugin(): Plugin {
 
         try {
           const body = (await readJson(req)) as { text?: string };
-          const text = (body.text || '').trim();
+          const text = sanitizeForTTS((body.text || '').trim());
           if (!text) {
             res.statusCode = 400;
             res.end('empty text');

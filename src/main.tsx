@@ -1,31 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import Admin from './routes/Admin';
 import V2 from './routes/V2';
 import Placeholder from './routes/Placeholder';
 import Projects from './routes/Projects';
+import Arts from './routes/Arts';
 import './styles.css';
+
+/** /research is just a hard redirect to the academic homepage —
+ *  no in-app placeholder needed. */
+function ResearchRedirect() {
+  useEffect(() => {
+    window.location.replace('https://chenjiangxi.github.io/home-page/');
+  }, []);
+  return null;
+}
 
 const router = createBrowserRouter([
   { path: '/', element: <V2 /> },
   { path: '/projects', element: <Projects /> },
-  {
-    path: '/research',
-    element: (
-      <Placeholder
-        title="Research"
-        subtitle="// Deep RL · GNN · 智能运维 · Quantitative Finance"
-        links={[
-          {
-            label: '学术主页',
-            url: 'https://chenjiangxi.github.io/home-page/',
-            description: '论文 / 简历 / 合作邮箱',
-          },
-        ]}
-      />
-    ),
-  },
+  { path: '/arts', element: <Arts /> },
+  { path: '/research', element: <ResearchRedirect /> },
   {
     path: '/contact',
     element: (

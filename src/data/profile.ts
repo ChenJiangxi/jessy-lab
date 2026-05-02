@@ -10,6 +10,9 @@ export const PROFILE = {
   email: 'chen731925@sjtu.edu.cn',
   /** Founder / collab inbox — kept separate from the academic one. */
   collabEmail: 'jiangxi_chen@163.com',
+  /** 老家：浙江台州。现住上海闵行。 */
+  hometown: '浙江台州',
+  currentCity: '上海闵行',
   /** 自画像小注：做命理项目的人自曝命盘特质。 */
   bazi: '伤官生财',
   /** 她的日主就是这一束小火——全站视觉的核心意象。 */

@@ -46,13 +46,13 @@ const TOOLS = [
     function: {
       name: 'reveal_project',
       description:
-        '浮现一个项目卡片。仅当用户问起某个**具体**项目（AuraMate / FateCouncil / MangPai / Tears in Rain）或你主动要讲这个项目的细节时调用。**严禁**在笼统聊天时调用。',
+        '浮现一个项目卡片。仅当用户问起某个**具体**项目（AuraMate / FateCouncil / MangPai / Tears in Rain / Kill Boss）或你主动要讲这个项目的细节时调用。**严禁**在笼统聊天时调用。',
       parameters: {
         type: 'object',
         properties: {
           id: {
             type: 'string',
-            enum: ['auramate', 'fatecouncil', 'mangpai', 'tears-in-rain', 'personal-site'],
+            enum: ['auramate', 'fatecouncil', 'mangpai', 'tears-in-rain', 'kill-boss', 'personal-site'],
           },
         },
         required: ['id'],
@@ -107,10 +107,10 @@ const TOOLS = [
     function: {
       name: 'navigate_to',
       description:
-        '跳到作品索引页。**仅当**用户用祈使句明确要"一份作品清单/列表/索引"时调用。**严禁**在介绍单个项目、闲聊、询问功能时调用。',
+        '跳到另一个页面。to=/projects 仅当用户用祈使句要"作品清单/列表/索引"时；to=/arts 仅当用户明确要看视觉作品/画/审美样本时。**严禁**在介绍单个项目、闲聊、或仅仅聊到电影/审美时调用——先用文字回应，等用户说"带我去看"才跳。',
       parameters: {
         type: 'object',
-        properties: { to: { type: 'string', enum: ['/minimal'] } },
+        properties: { to: { type: 'string', enum: ['/projects', '/arts'] } },
         required: ['to'],
       },
     },

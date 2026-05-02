@@ -4,9 +4,12 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 type Props = {
   /** Pixel-space rectangle (viewport coords) where streaks should not
-   *  draw — used to keep the chat panel clean. Streaks DO flow through
-   *  the head and halo. */
+   *  draw — used to keep the chat panel clean. */
   excludeRect?: Rect | null;
+  /** Bounding rect of the avatar wrapper. Streaks fade out smoothly as
+   *  they approach the figure (soft elliptical halo, no hard edge) so
+   *  the head reads as a clean silhouette against the backdrop. */
+  avatarRect?: Rect | null;
 };
 
 /**
@@ -16,12 +19,16 @@ type Props = {
  * the left, blue on the right; alpha is boosted at the edges and
  * gentled near center so the visual weight follows the reference.
  */
-export default function LineBackdrop({ excludeRect }: Props) {
+export default function LineBackdrop({ excludeRect, avatarRect }: Props) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const excludeRef = useRef<Rect | null>(excludeRect ?? null);
+  const avatarRef = useRef<Rect | null>(avatarRect ?? null);
   useEffect(() => {
     excludeRef.current = excludeRect ?? null;
   }, [excludeRect]);
+  useEffect(() => {
+    avatarRef.current = avatarRect ?? null;
+  }, [avatarRect]);
 
   useEffect(() => {
     const cv = ref.current;
@@ -125,10 +132,28 @@ export default function LineBackdrop({ excludeRect }: Props) {
       // being hard-clipped. Outside the chat's horizontal extent there
       // is no fade — streaks to the sides keep flowing.
       const ex = excludeRef.current;
+      const av = avatarRef.current;
       const FADE_TOP = 110;
       const FADE_BOT = 60;
       const smoothstep = (t: number): number =>
         t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+
+      // Avatar exclusion: model the figure as an ellipse centered on the
+      // face (shifted up because the video uses objectPosition '50% 22%').
+      // Streaks inside the inner ellipse are killed, fade smoothly to
+      // full opacity by the outer one.
+      let avCx = 0,
+        avCy = 0,
+        avRx = 0,
+        avRy = 0;
+      const AV_INNER = 0.92;
+      const AV_OUTER = 1.18;
+      if (av && av.w > 0 && av.h > 0) {
+        avCx = av.x + av.w / 2;
+        avCy = av.y + av.h / 2 - av.h * 0.08;
+        avRx = av.w * 0.50;
+        avRy = av.h * 0.48;
+      }
 
       ctx.lineWidth = 0.6;
       for (const p of particles) {
@@ -146,6 +171,17 @@ export default function LineBackdrop({ excludeRect }: Props) {
             a *= smoothstep((top - mid) / FADE_TOP);
           } else if (mid > bot && mid < bot + FADE_BOT) {
             a *= smoothstep((mid - bot) / FADE_BOT);
+          }
+        }
+
+        if (a > 0 && avRx > 0) {
+          const mid = p.y - p.length * 0.5;
+          const ndx = (p.x - avCx) / avRx;
+          const ndy = (mid - avCy) / avRy;
+          const d = Math.sqrt(ndx * ndx + ndy * ndy);
+          if (d < AV_OUTER) {
+            const t = (d - AV_INNER) / (AV_OUTER - AV_INNER);
+            a *= smoothstep(t);
           }
         }
 

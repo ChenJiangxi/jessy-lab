@@ -390,6 +390,26 @@ export default function V2() {
         <Link to="/contact" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">CONTACT</Link>
       </div>
 
+      {/* ── HUD: mobile nav — sits where the desktop time-pill is hidden,
+          stacks four short links in a column-tight cluster top-right.
+          On desktop this whole block is replaced by the time pill above
+          and the bottom-right nav above. */}
+      <div
+        className="absolute top-5 right-5 font-mono text-[9px] tracking-[0.3em] uppercase pointer-events-auto md:hidden z-30 flex flex-col items-end gap-1.5"
+      >
+        <Link to="/projects" className="text-[#f4ecdc]/55 active:text-[#c8a5ff]">PROJECTS</Link>
+        <Link to="/arts" className="text-[#f4ecdc]/55 active:text-[#c8a5ff]">ARTS</Link>
+        <a
+          href="https://chenjiangxi.github.io/home-page/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#f4ecdc]/55 active:text-[#c8a5ff]"
+        >
+          RESEARCH
+        </a>
+        <Link to="/contact" className="text-[#f4ecdc]/55 active:text-[#c8a5ff]">CONTACT</Link>
+      </div>
+
       {/* main column */}
       <div className="absolute inset-0 flex flex-col items-center px-6 pt-[2vh] pb-[3vh] z-20">
         {/* head — cyber HUD frame: chamfered (45°-cut) corner brackets,

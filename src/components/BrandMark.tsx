@@ -22,7 +22,15 @@ export function BrandMark({
   /** the small tri-color hairline beneath — drop on pages that don't need it */
   showAccent?: boolean;
 }) {
-  const sizePx = size === 'sm' ? 24 : size === 'lg' ? 36 : 30;
+  // Each size scales between a mobile floor and a desktop ceiling so the
+  // wordmark doesn't overshadow the page on small viewports (where the
+  // home portrait was being clipped by the brand block).
+  const sizePx: string =
+    size === 'sm'
+      ? 'clamp(18px, 4.2vw, 24px)'
+      : size === 'lg'
+        ? 'clamp(22px, 5.4vw, 36px)'
+        : 'clamp(20px, 4.8vw, 30px)';
   return (
     <div className="pointer-events-none">
       <span

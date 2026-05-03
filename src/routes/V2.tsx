@@ -10,6 +10,15 @@ import { speak, stopAudio, unlockAudio } from '../lib/tts';
 type Turn = { role: 'user' | 'assistant'; content: string };
 
 /**
+ * Cold-start greeting — shown verbatim to first-time visitors (empty
+ * history). Voiced via TTS on the visitor's first interaction with the
+ * page (autoplay policy blocks playing without a user gesture). If the
+ * visitor types or taps a chip first, the greeting stays on screen but
+ * isn't voiced — `ask()` suppresses it so we don't talk over their reply.
+ */
+const GREETING = '嗨——你来了。我是 Jessy 的数字自我，可以聊聊我的研究、艺术，或者别的什么。';
+
+/**
  * Suggestion chip pool — always shown above the input (B variant: a
  * persistent UI element, not just a cold-start affordance). On each
  * fresh page load we pick 4 at random from this pool; they stay until
@@ -17,19 +26,38 @@ type Turn = { role: 'user' | 'assistant'; content: string };
  */
 const SUGGESTIONS_POOL = [
   '聊聊你自己',
-  'AuraMate 是什么',
+  'PhD 是什么感觉',
   '凌晨三点你在想什么',
+  '你今天颓废吗',
+  '累了你做什么',
+  '台州人在上海开心吗',
+  '你做研究在做什么',
+  '强化学习怎么入门',
+  '智能运维到底干嘛',
+  'GNN 现在还热吗',
+  '量化的日子怎么样',
+  '学术圈水吗',
+  'AuraMate 是什么',
+  'FateCouncil 是什么',
+  'MangPai 在做什么',
+  '这个网站怎么做的',
+  '想跟你 vibe coding',
+  '怎么开始做副业',
+  '命理是迷信吗',
+  '怎么解释丁火',
+  '伤官生财什么意思',
+  '怎么定义被看见',
+  '名字背后是什么',
   'Tears in Rain',
+  '王家卫哪部最爱',
+  '侯孝贤呢',
+  'Blade Runner 看几遍了',
+  '推荐一首歌',
+  '推荐一本书',
   '最近在看什么',
   '怎么看这波 AI',
-  '命理是迷信吗',
-  '王家卫哪部最爱',
-  '推荐一首歌',
-  '你做研究在做什么',
-  '想跟你 vibe coding',
-  '你今天颓废吗',
-  'PhD 是什么感觉',
-  '台州人在上海开心吗',
+  '最近爬过哪座山',
+  '滑雪去哪',
 ];
 
 /** Pick N items from arr without repeats — used for the chip rotation. */
@@ -81,6 +109,14 @@ export default function V2() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Greeting state — `greetedRef` flips true once the greeting has been
+  // either voiced OR superseded by the visitor speaking first.
+  // `suppressGreetingRef` is set by the greeting-listener effect so
+  // `ask()` can detach the pending listeners synchronously when a turn
+  // starts (avoids voicing the greeting and immediately cutting it off).
+  const greetedRef = useRef(false);
+  const suppressGreetingRef = useRef<(() => void) | null>(null);
+
   // Suggestion chips — initialised on mount, then re-shuffled after each
   // turn completes (see effect below) so the chip strip always offers
   // fresh prompts instead of stale ones.
@@ -96,7 +132,9 @@ export default function V2() {
 
   const time = useBeijingTime();
 
-  // Boot — load chat history.
+  // Boot — load chat history. New visitors (empty history) get a greeting
+  // line injected into the chat so the panel isn't blank on arrival; the
+  // listener effect below then voices it on first interaction.
   useEffect(() => {
     sessionIdRef.current = getSessionId();
     let cancelled = false;
@@ -105,21 +143,74 @@ export default function V2() {
         const res = await fetch(
           `/api/history?sessionId=${encodeURIComponent(sessionIdRef.current)}`,
         );
-        if (!res.ok) return;
-        const j = (await res.json()) as {
-          messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
-        };
-        if (!cancelled && j.messages?.length) {
+        if (cancelled) return;
+        const j = res.ok
+          ? ((await res.json()) as {
+              messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
+            })
+          : { messages: [] };
+        if (cancelled) return;
+        if (j.messages?.length) {
+          // Returning visitor — restore history, suppress greeting.
+          greetedRef.current = true;
           setTurns(j.messages.map((m) => ({ role: m.role, content: m.content })));
+        } else {
+          setTurns([{ role: 'assistant', content: GREETING }]);
         }
       } catch {
-        /* ignore */
+        if (!cancelled) setTurns([{ role: 'assistant', content: GREETING }]);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Greeting voicing — once the greeting is on screen, attach window
+  // `click` + `keydown` listeners. Whichever fires first triggers TTS.
+  // `click` (not `pointerdown`) lets React's synthetic onClick run first
+  // when the visitor taps a chip — `ask()` then calls
+  // `suppressGreetingRef.current()` to detach this listener before the
+  // bubbled click reaches window, avoiding a half-second of greeting that
+  // gets cut off by the chip's reply.
+  useEffect(() => {
+    if (greetedRef.current) return;
+    const greetingShowing =
+      turns.length === 1 &&
+      turns[0]?.role === 'assistant' &&
+      turns[0]?.content === GREETING;
+    if (!greetingShowing) return;
+
+    const playGreeting = () => {
+      if (greetedRef.current) return;
+      greetedRef.current = true;
+      detach();
+      unlockAudio();
+      void (async () => {
+        try {
+          await speak(GREETING, {
+            onAudioStart: () => setSpeaking(true),
+          });
+        } catch {
+          /* TTS failure shouldn't break the page */
+        } finally {
+          setSpeaking(false);
+        }
+      })();
+    };
+    const detach = () => {
+      window.removeEventListener('click', playGreeting);
+      window.removeEventListener('keydown', playGreeting);
+      suppressGreetingRef.current = null;
+    };
+    suppressGreetingRef.current = () => {
+      greetedRef.current = true;
+      detach();
+    };
+    window.addEventListener('click', playGreeting);
+    window.addEventListener('keydown', playGreeting);
+    return detach;
+  }, [turns]);
 
   // Auto-scroll on new content.
   useEffect(() => {
@@ -227,6 +318,11 @@ export default function V2() {
   const ask = async (raw: string) => {
     const text = raw.trim();
     if (!text || streamingRef.current) return;
+
+    // Visitor is starting a turn — detach any pending greeting listeners
+    // so the bubbled window-click doesn't fire greeting TTS that we'd
+    // immediately have to cut off.
+    suppressGreetingRef.current?.();
 
     // Inside a click handler — unlock audio for iOS / Safari / WeChat,
     // and cut off any prior TTS clip before starting a new turn.

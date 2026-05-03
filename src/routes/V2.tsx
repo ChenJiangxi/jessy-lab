@@ -390,25 +390,10 @@ export default function V2() {
         <Link to="/contact" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">CONTACT</Link>
       </div>
 
-      {/* ── HUD: mobile nav — sits where the desktop time-pill is hidden,
-          stacks four short links in a column-tight cluster top-right.
-          On desktop this whole block is replaced by the time pill above
-          and the bottom-right nav above. */}
-      <div
-        className="absolute top-5 right-5 font-mono text-[9px] tracking-[0.3em] uppercase pointer-events-auto md:hidden z-30 flex flex-col items-end gap-1.5"
-      >
-        <Link to="/projects" className="text-[#f4ecdc]/55 active:text-[#c8a5ff]">PROJECTS</Link>
-        <Link to="/arts" className="text-[#f4ecdc]/55 active:text-[#c8a5ff]">ARTS</Link>
-        <a
-          href="https://chenjiangxi.github.io/home-page/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[#f4ecdc]/55 active:text-[#c8a5ff]"
-        >
-          RESEARCH
-        </a>
-        <Link to="/contact" className="text-[#f4ecdc]/55 active:text-[#c8a5ff]">CONTACT</Link>
-      </div>
+      {/* ── HUD: mobile nav — single MENU toggle, drops a compact panel.
+          Collapsed state takes one short word so the top doesn't crowd
+          the brand on the left or the avatar in the centre. */}
+      <MobileNav />
 
       {/* main column */}
       <div className="absolute inset-0 flex flex-col items-center px-6 pt-[2vh] pb-[3vh] z-20">
@@ -696,5 +681,85 @@ export default function V2() {
         }
       `}</style>
     </div>
+  );
+}
+
+/* ============================================================================
+   MobileNav — collapsed = single MENU toggle word; opens to a small
+   right-aligned dropdown with the four routes. md:hidden — desktop has
+   its own bottom-right nav and never sees this.
+============================================================================ */
+
+function MobileNav() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {/* full-screen backdrop catches outside taps when open */}
+      {open && (
+        <button
+          type="button"
+          aria-label="close menu"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-30 md:hidden"
+          style={{ background: 'transparent' }}
+        />
+      )}
+      <div className="absolute top-5 right-5 md:hidden z-40 flex flex-col items-end">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="font-mono text-[10px] tracking-[0.4em] uppercase text-[#f4ecdc]/55 active:text-[#c8a5ff] pointer-events-auto"
+          aria-expanded={open}
+          aria-label={open ? 'close menu' : 'open menu'}
+        >
+          {open ? 'CLOSE  ×' : 'MENU  →'}
+        </button>
+        {open && (
+          <div
+            className="mt-3 flex flex-col items-end gap-2 font-mono text-[10px] tracking-[0.32em] uppercase pointer-events-auto"
+            style={{
+              animation: 'v2_menu_fade 200ms ease-out forwards',
+            }}
+          >
+            <Link
+              to="/projects"
+              onClick={() => setOpen(false)}
+              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
+            >
+              PROJECTS
+            </Link>
+            <Link
+              to="/arts"
+              onClick={() => setOpen(false)}
+              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
+            >
+              ARTS
+            </Link>
+            <a
+              href="https://chenjiangxi.github.io/home-page/"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
+            >
+              RESEARCH
+            </a>
+            <Link
+              to="/contact"
+              onClick={() => setOpen(false)}
+              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
+            >
+              CONTACT
+            </Link>
+          </div>
+        )}
+      </div>
+      <style>{`
+        @keyframes v2_menu_fade {
+          0%   { opacity: 0; transform: translateY(-4px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </>
   );
 }

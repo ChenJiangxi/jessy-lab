@@ -122,4 +122,74 @@ export function clearMessages(sessionId: string): void {
   db.prepare(`DELETE FROM chat_messages WHERE session_id = ?`).run(sessionId);
 }
 
+export type SessionSummary = {
+  sessionId: string;
+  msgCount: number;
+  lastAt: number;
+  firstAt: number;
+  /** First user message in the session, truncated for the preview row. */
+  firstUserSnippet: string;
+};
+
+/** All sessions with at least one message, newest activity first. */
+export function listSessions(limit = 200): SessionSummary[] {
+  const rows = db
+    .prepare(
+      `SELECT session_id,
+              COUNT(*)        AS msg_count,
+              MIN(created_at) AS first_at,
+              MAX(created_at) AS last_at
+       FROM chat_messages
+       GROUP BY session_id
+       ORDER BY last_at DESC
+       LIMIT ?`,
+    )
+    .all(limit) as Array<{
+      session_id: string;
+      msg_count: number;
+      first_at: number;
+      last_at: number;
+    }>;
+
+  const previewStmt = db.prepare(
+    `SELECT content FROM chat_messages
+     WHERE session_id = ? AND role = 'user'
+     ORDER BY created_at ASC LIMIT 1`,
+  );
+
+  return rows.map((r) => {
+    const preview = previewStmt.get(r.session_id) as { content: string } | undefined;
+    const snippet = preview?.content ?? '';
+    return {
+      sessionId: r.session_id,
+      msgCount: r.msg_count,
+      firstAt: r.first_at,
+      lastAt: r.last_at,
+      firstUserSnippet: snippet.length > 120 ? snippet.slice(0, 120) + '…' : snippet,
+    };
+  });
+}
+
+/** Full message history for a session, oldest first. No 50-cap. */
+export function loadFullSession(sessionId: string): StoredMessage[] {
+  const rows = db
+    .prepare(
+      `SELECT id, role, content, created_at FROM chat_messages
+       WHERE session_id = ?
+       ORDER BY created_at ASC`,
+    )
+    .all(sessionId) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      created_at: number;
+    }>;
+  return rows.map((r) => ({
+    id: r.id,
+    role: r.role as 'user' | 'assistant',
+    content: r.content,
+    createdAt: r.created_at,
+  }));
+}
+
 export { db };

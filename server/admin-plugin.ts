@@ -11,7 +11,12 @@
 
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { upsertAgentConfig } from './db';
+import {
+  upsertAgentConfig,
+  listSessions,
+  loadFullSession,
+  clearMessages,
+} from './db';
 import { getAgentConfig, invalidateAgentConfigCache } from './agent-config';
 
 function readJson(req: IncomingMessage): Promise<unknown> {
@@ -56,6 +61,33 @@ export function adminApiPlugin(): Plugin {
         } catch (err: any) {
           sendJson(res, 400, { error: err?.message || 'bad request' });
         }
+      });
+
+      // GET /api/admin/conversations?key=... → list of session summaries
+      server.middlewares.use('/api/admin/conversations', async (req, res) => {
+        if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' });
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const key = url.searchParams.get('key') ?? undefined;
+        if (!checkKey(key)) return sendJson(res, 401, { error: 'unauthorized' });
+        return sendJson(res, 200, { sessions: listSessions() });
+      });
+
+      // /api/admin/conversation?key=...&id=... — GET full thread / DELETE session
+      server.middlewares.use('/api/admin/conversation', async (req, res) => {
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const key = url.searchParams.get('key') ?? undefined;
+        const sessionId = url.searchParams.get('id') ?? '';
+        if (!checkKey(key)) return sendJson(res, 401, { error: 'unauthorized' });
+        if (!sessionId) return sendJson(res, 400, { error: 'missing id' });
+
+        if (req.method === 'GET') {
+          return sendJson(res, 200, { messages: loadFullSession(sessionId) });
+        }
+        if (req.method === 'DELETE') {
+          clearMessages(sessionId);
+          return sendJson(res, 200, { ok: true });
+        }
+        return sendJson(res, 405, { error: 'method not allowed' });
       });
 
       // /api/admin/config — GET (read) or POST (write)

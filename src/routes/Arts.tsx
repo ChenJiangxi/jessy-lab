@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { BrandMark } from '../components/BrandMark';
+import { BackLink } from '../components/BackLink';
 
 /* ============================================================================
    ARTS — gallery, not toy room.
@@ -157,14 +157,9 @@ export default function Arts() {
         AUDIO READY
       </div>
 
-      {/* back link bottom-right */}
-      <Link
-        to="/"
-        className="fixed bottom-7 right-7 z-30 font-mono text-[10px] tracking-[0.32em] uppercase text-[#f0e8dc]/45 hover:text-[#f0e8dc]"
-        style={{ transition: 'color 280ms ease' }}
-      >
-        BACK ←
-      </Link>
+      {/* back link — bottom-right, shared <BackLink> so position never
+          drifts between /projects and /arts */}
+      <BackLink />
 
       {/* MAIN — single centered column */}
       <main

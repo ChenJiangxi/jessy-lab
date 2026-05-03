@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { BrandMark } from '../components/BrandMark';
+import { BackLink } from '../components/BackLink';
 
 /* ============================================================================
    PROJECTS — curator's catalogue.
@@ -291,13 +291,7 @@ function PageChrome() {
       <div className="fixed top-5 left-6 z-40">
         <BrandMark subtitle="PORTFOLIO" />
       </div>
-      <Link
-        to="/"
-        className="fixed bottom-6 left-6 z-40 font-mono text-[10px] tracking-[0.32em] uppercase text-[#f4ecdc]/45 hover:text-[#c8a5ff]"
-        style={{ transition: 'color 280ms ease' }}
-      >
-        ← BACK TO JESSY
-      </Link>
+      <BackLink />
     </>
   );
 }

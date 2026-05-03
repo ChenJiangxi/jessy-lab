@@ -46,13 +46,13 @@ const TOOLS = [
     function: {
       name: 'reveal_project',
       description:
-        '浮现一个项目卡片。仅当用户问起某个**具体**项目（AuraMate / FateCouncil / MangPai / Tears in Rain / Kill Boss）或你主动要讲这个项目的细节时调用。**严禁**在笼统聊天时调用。',
+        '浮现一个项目卡片。仅当用户问起某个**具体**项目（AuraMate / FateCouncil / MangPai / Tears in Rain / Kill Boss / Whack-a-Claude / Rain Scripts）或你主动要讲这个项目的细节时调用。**严禁**在笼统聊天时调用。',
       parameters: {
         type: 'object',
         properties: {
           id: {
             type: 'string',
-            enum: ['auramate', 'fatecouncil', 'mangpai', 'tears-in-rain', 'kill-boss', 'personal-site'],
+            enum: ['auramate', 'fatecouncil', 'mangpai', 'tears-in-rain', 'killboss', 'whack', 'rainscripts', 'personal-site'],
           },
         },
         required: ['id'],

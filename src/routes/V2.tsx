@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AmbientBackdrop from '../scene/AmbientBackdrop';
+import { BrandMark } from '../components/BrandMark';
 import VideoHead from '../scene/VideoHead';
 import { streamChat } from '../lib/chat';
 import { getSessionId } from '../lib/session';
@@ -9,10 +10,10 @@ import { speak, stopAudio, unlockAudio } from '../lib/tts';
 type Turn = { role: 'user' | 'assistant'; content: string };
 
 /**
- * Starter chip pool — shown only on cold-start (no messages yet). On
- * each fresh page load we pick 4 at random from this pool. Chips
- * disappear permanently after the visitor sends their first message —
- * they're a cold-start affordance, not a persistent UI element.
+ * Suggestion chip pool — always shown above the input (B variant: a
+ * persistent UI element, not just a cold-start affordance). On each
+ * fresh page load we pick 4 at random from this pool; they stay until
+ * refresh.
  */
 const SUGGESTIONS_POOL = [
   '聊聊你自己',
@@ -80,8 +81,13 @@ export default function V2() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // 4 starter chips picked once per page load — stable until refresh.
-  const suggestions = useMemo(() => sampleN(SUGGESTIONS_POOL, 4), []);
+  // Suggestion chips — initialised on mount, then re-shuffled after each
+  // turn completes (see effect below) so the chip strip always offers
+  // fresh prompts instead of stale ones.
+  const [suggestions, setSuggestions] = useState<string[]>(() =>
+    sampleN(SUGGESTIONS_POOL, 4),
+  );
+  const prevStreamingRef = useRef(false);
 
   // Pacing buffer
   const pendingRef = useRef<string>('');
@@ -120,6 +126,15 @@ export default function V2() {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns, streaming]);
+
+  // Re-shuffle suggestion chips right after Jessy finishes streaming a
+  // reply — gives the visitor a fresh set of prompts each turn.
+  useEffect(() => {
+    if (prevStreamingRef.current && !streaming) {
+      setSuggestions(sampleN(SUGGESTIONS_POOL, 4));
+    }
+    prevStreamingRef.current = streaming;
+  }, [streaming]);
 
   // Keep streamingRef in sync with state.
   useEffect(() => {
@@ -337,30 +352,7 @@ export default function V2() {
 
       {/* ── HUD: top-left brand ─────────────────────────── */}
       <div className="absolute top-5 left-6 pointer-events-none z-30">
-        <span
-          style={{
-            fontFamily:
-              'ui-serif, "Cormorant Garamond", Garamond, "Times New Roman", serif',
-            fontStyle: 'italic',
-            fontWeight: 400,
-            fontSize: 32,
-            letterSpacing: '0.01em',
-            color: '#f4ecdc',
-            lineHeight: 1,
-          }}
-        >
-          Jessy
-        </span>
-        <div className="mt-2 font-mono text-[9.5px] tracking-[0.45em] text-[#f4ecdc]/45">
-          DIGITAL SELF
-        </div>
-        <div
-          className="mt-2 h-px w-12"
-          style={{
-            background:
-              'linear-gradient(90deg, rgba(245,184,214,0.7), rgba(200,165,255,0.45) 50%, rgba(126,197,255,0.55) 90%, transparent)',
-          }}
-        />
+        <BrandMark subtitle="DIGITAL SELF" size="lg" />
       </div>
 
       {/* ── HUD: top-right · time + status (desktop only) ── */}
@@ -570,9 +562,10 @@ export default function V2() {
             </div>
           </div>
 
-          {/* starter chips — only shown on cold-start (no turns yet).
-              Disappear after the visitor sends their first message. */}
-          {turns.length === 0 && !streaming && (
+          {/* suggestion chips — always present above the input as a
+              persistent affordance. Hidden only while she's composing
+              a reply so the chips don't seem clickable mid-stream. */}
+          {!streaming && (
             <div className="shrink-0 w-full mt-2.5 mb-2 flex flex-wrap gap-x-3 gap-y-1.5 justify-center items-center font-mono text-[10px] md:text-[10.5px] tracking-[0.12em] pointer-events-auto">
               {suggestions.map((s, i) => (
                 <span key={s} className="flex items-center gap-x-3">

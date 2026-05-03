@@ -83,7 +83,7 @@ export default function AmbientBackdrop() {
           width: '54%',
           height: '88%',
           background:
-            'radial-gradient(ellipse 55% 65% at 32% 52%, rgba(155,90,215,0.32), rgba(95,55,160,0.10) 45%, transparent 78%)',
+            'radial-gradient(ellipse 55% 65% at 32% 52%, rgba(160,95,220,0.42), rgba(100,55,165,0.14) 45%, transparent 78%)',
           filter: 'blur(70px)',
           animation: 'amb_a 18s ease-in-out infinite',
           willChange: 'transform, opacity',
@@ -101,7 +101,7 @@ export default function AmbientBackdrop() {
           width: '46%',
           height: '78%',
           background:
-            'radial-gradient(ellipse 55% 65% at 68% 48%, rgba(80,140,220,0.24), rgba(50,90,170,0.07) 45%, transparent 78%)',
+            'radial-gradient(ellipse 55% 65% at 68% 48%, rgba(85,145,225,0.32), rgba(50,90,170,0.10) 45%, transparent 78%)',
           filter: 'blur(70px)',
           animation: 'amb_b 22s ease-in-out infinite',
           willChange: 'transform, opacity',

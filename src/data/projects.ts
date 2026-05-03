@@ -83,6 +83,30 @@ export const PROJECTS: Project[] = [
     year: '2025',
   },
   {
+    id: 'whack',
+    kind: 'workshop',
+    name: 'Whack-a-Claude',
+    chineseName: '敲一下 Claude',
+    url: 'https://github.com/ChenJiangxi/whack-a-claude',
+    tagline: '等模型时玩的像素打地鼠。',
+    description:
+      '一个像素打地鼠。Claude Code 想得超过 8 秒，它就跳出来。等模型的时间不再难熬——你可以一边出气一边等。对 agent 时代「等待」的小回应。',
+    accent: 'from-sky-300 via-cyan-300 to-blue-400',
+    year: '2025',
+  },
+  {
+    id: 'rainscripts',
+    kind: 'workshop',
+    name: 'Rain Scripts',
+    chineseName: '雨夜念白',
+    url: 'https://github.com/ChenJiangxi/rain-scripts',
+    tagline: '一个雨夜念白合集，繁体竖排从右到左。',
+    description:
+      '每个剧本是一段内心独白，配一种雨景 shader。字隨語音一個一個、繁體竖排、從右到左，慢慢打在落雨的窗上。像把电影的某一帧抽出来，让它一直停在那里。',
+    accent: 'from-violet-200 via-indigo-300 to-sky-300',
+    year: '2025',
+  },
+  {
     id: 'personal-site',
     kind: 'workshop',
     name: 'This Site',

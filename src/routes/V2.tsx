@@ -712,7 +712,7 @@ function MobileNav() {
           aria-expanded={open}
           aria-label={open ? 'close menu' : 'open menu'}
         >
-          {open ? 'CLOSE  ×' : 'MENU  →'}
+          {open ? 'CLOSE' : 'MENU'}
         </button>
         {open && (
           <div

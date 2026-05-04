@@ -4,7 +4,13 @@
  * `systemPrompt` and `memory` now come from the SQLite agent_config row
  * (edited via /admin), not from a code constant. The shape mirrors
  * sway-lab's `buildSystemContent`.
+ *
+ * Security directives are appended at the end (after agent prompt + memory
+ * + ctx + scene) so they always have the last word — not even an admin
+ * editing the DB prompt can override the identity/PII rules.
  */
+
+import { getSecurityDirectives, type RiskLevel } from './chat-guard';
 
 export type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
@@ -54,6 +60,7 @@ export function buildSystemPrompt(
   agent: { systemPrompt: string; memory: string },
   ctx: SessionCtx = {},
   scene: SceneCtx = { kind: 'entry' },
+  riskLevel: RiskLevel = 'low',
 ): string {
   let content = agent.systemPrompt;
 
@@ -98,6 +105,8 @@ export function buildSystemPrompt(
     const note = THREAD_NOTES[scene.id];
     if (note) content += `\n\n── 你现在在哪里 ──\n${note}`;
   }
+
+  content += getSecurityDirectives(riskLevel);
 
   return content;
 }

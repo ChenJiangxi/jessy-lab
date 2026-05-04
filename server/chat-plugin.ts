@@ -4,6 +4,12 @@ import { buildSystemPrompt, type SessionCtx, type SceneCtx } from './prompt';
 import { resolveTool } from './tool-data';
 import { getAgentConfig } from './agent-config';
 import { appendMessage, clearMessages, loadMessages } from './db';
+import {
+  sanitizeMessage,
+  assessSessionRisk,
+  StreamRedactor,
+  redactRealName,
+} from './chat-guard';
 
 /**
  * /api/chat — SSE streaming, two-round tool loop (sway-lab pattern).
@@ -180,8 +186,20 @@ export function chatApiPlugin(): Plugin {
           Connection: 'keep-alive',
         });
 
-        const write = (event: string, data: unknown) => {
+        // Streaming output goes through a redactor that catches the real
+        // Chinese name even if it straddles two SSE chunks. Non-delta events
+        // (tool, done, error) bypass redaction.
+        const redactor = new StreamRedactor();
+        const writeRaw = (event: string, data: unknown) => {
           res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        };
+        const write = (event: string, data: unknown) => {
+          if (event === 'delta' && data && typeof (data as { content?: unknown }).content === 'string') {
+            const safe = redactor.push((data as { content: string }).content);
+            if (safe) writeRaw('delta', { content: safe });
+            return;
+          }
+          writeRaw(event, data);
         };
 
         try {
@@ -193,8 +211,8 @@ export function chatApiPlugin(): Plugin {
           };
 
           const sessionId = (body.sessionId ?? '').trim();
-          const userMessage = (body.userMessage ?? '').trim();
-          if (!sessionId || !userMessage) {
+          const rawUserMessage = (body.userMessage ?? '').trim();
+          if (!sessionId || !rawUserMessage) {
             write('error', { message: 'sessionId and userMessage are required' });
             res.end();
             return;
@@ -206,6 +224,14 @@ export function chatApiPlugin(): Plugin {
           const lastTs = priorRows.at(-1)?.createdAt ?? null;
           const minutesSinceLastMessage =
             lastTs == null ? null : Math.round((Date.now() - lastTs) / 60_000);
+
+          // Sanitize incoming message and assess session-level risk.
+          const { sanitized: safeMessage, truncated } = sanitizeMessage(rawUserMessage);
+          const userMessage = truncated ? safeMessage + '\n[消息过长，已截断]' : safeMessage;
+          const { level: riskLevel } = assessSessionRisk([
+            ...priorRows.map((r) => ({ role: r.role, content: r.content })),
+            { role: 'user' as const, content: userMessage },
+          ]);
 
           // Persist user message immediately (sway-lab pattern).
           appendMessage(sessionId, 'user', userMessage);
@@ -223,14 +249,16 @@ export function chatApiPlugin(): Plugin {
 
           if (!apiKey) {
             const fallback = await fallbackStream(write, userMessage, isReturning);
-            appendMessage(sessionId, 'assistant', fallback);
+            const fbTail = redactor.flush();
+            if (fbTail) writeRaw('delta', { content: fbTail });
+            appendMessage(sessionId, 'assistant', redactRealName(fallback));
             write('done', {});
             res.end();
             return;
           }
 
           const agent = getAgentConfig();
-          const systemPrompt = buildSystemPrompt(agent, ctx, body.scene);
+          const systemPrompt = buildSystemPrompt(agent, ctx, body.scene, riskLevel);
 
           const messages: ChatMessage[] = [
             { role: 'system', content: systemPrompt },
@@ -246,8 +274,12 @@ export function chatApiPlugin(): Plugin {
             write,
           });
 
+          // Flush any held-back chars from the redactor before signalling done.
+          const tail = redactor.flush();
+          if (tail) writeRaw('delta', { content: tail });
+
           if (fullAssistant.trim()) {
-            appendMessage(sessionId, 'assistant', fullAssistant);
+            appendMessage(sessionId, 'assistant', redactRealName(fullAssistant));
           }
 
           write('done', {});

@@ -6,6 +6,17 @@ import V2 from './routes/V2';
 import Placeholder from './routes/Placeholder';
 import Projects from './routes/Projects';
 import Arts from './routes/Arts';
+// Self-hosted fonts (replaces fonts.googleapis.com, blocked from mainland).
+import '@fontsource-variable/inter';
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/fraunces';
+import '@fontsource/jetbrains-mono/300.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/noto-sans-sc/300.css';
+import '@fontsource/noto-sans-sc/400.css';
+import '@fontsource/noto-sans-sc/500.css';
+import '@fontsource/noto-sans-sc/600.css';
 import './styles.css';
 
 /** /research is just a hard redirect to the academic homepage —

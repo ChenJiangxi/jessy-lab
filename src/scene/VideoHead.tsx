@@ -59,11 +59,7 @@ export default function VideoHead({ playing = false, className }: Props) {
             }
       }
     >
-      {/* webm first so Chrome / Firefox / Edge grab the smaller VP9-alpha
-          file. Safari (incl. iOS) doesn't support webm and falls through
-          to the hvc1 mov, which carries an HEVC alpha plane. */}
       <source src="/face-video.webm" type='video/webm; codecs="vp9"' />
-      <source src="/face-video.mov" type='video/quicktime; codecs="hvc1"' />
     </video>
   );
 }

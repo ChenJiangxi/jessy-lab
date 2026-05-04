@@ -46,6 +46,7 @@ export default function VideoHead({ playing = false, className }: Props) {
       playsInline
       loop
       preload="auto"
+      poster="/face-poster.jpg"
       aria-hidden
       className={className ?? 'w-full h-full'}
       style={

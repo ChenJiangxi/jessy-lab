@@ -129,7 +129,13 @@ export type SessionSummary = {
   firstAt: number;
   /** First user message in the session, truncated for the preview row. */
   firstUserSnippet: string;
+  /** Most recent message in the session, truncated. Lets the list show the arc. */
+  lastSnippet: string;
+  lastRole: 'user' | 'assistant' | '';
 };
+
+const SNIPPET_MAX = 120;
+const truncate = (s: string) => (s.length > SNIPPET_MAX ? s.slice(0, SNIPPET_MAX) + '…' : s);
 
 /** All sessions with at least one message, newest activity first. */
 export function listSessions(limit = 200): SessionSummary[] {
@@ -151,21 +157,28 @@ export function listSessions(limit = 200): SessionSummary[] {
       last_at: number;
     }>;
 
-  const previewStmt = db.prepare(
+  const firstUserStmt = db.prepare(
     `SELECT content FROM chat_messages
      WHERE session_id = ? AND role = 'user'
      ORDER BY created_at ASC LIMIT 1`,
   );
+  const lastStmt = db.prepare(
+    `SELECT content, role FROM chat_messages
+     WHERE session_id = ?
+     ORDER BY created_at DESC LIMIT 1`,
+  );
 
   return rows.map((r) => {
-    const preview = previewStmt.get(r.session_id) as { content: string } | undefined;
-    const snippet = preview?.content ?? '';
+    const first = firstUserStmt.get(r.session_id) as { content: string } | undefined;
+    const last = lastStmt.get(r.session_id) as { content: string; role: string } | undefined;
     return {
       sessionId: r.session_id,
       msgCount: r.msg_count,
       firstAt: r.first_at,
       lastAt: r.last_at,
-      firstUserSnippet: snippet.length > 120 ? snippet.slice(0, 120) + '…' : snippet,
+      firstUserSnippet: truncate(first?.content ?? ''),
+      lastSnippet: truncate(last?.content ?? ''),
+      lastRole: (last?.role as 'user' | 'assistant' | undefined) ?? '',
     };
   });
 }

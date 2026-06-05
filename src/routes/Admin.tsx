@@ -21,6 +21,8 @@ type SessionSummary = {
   firstAt: number;
   lastAt: number;
   firstUserSnippet: string;
+  lastSnippet: string;
+  lastRole: 'user' | 'assistant' | '';
 };
 
 type StoredMessage = {
@@ -320,8 +322,10 @@ function TabButton({
 }
 
 /* ============================================================================
-   ConversationsPanel — list visitor sessions, drill into a single thread,
-   delete a session. Reads /api/admin/conversations + /api/admin/conversation.
+   ConversationsPanel — master-detail layout.
+   Left: sessions list (search + dual-snippet + relative time).
+   Right: sticky thread pane.
+   Mobile (<lg): stacks; list collapses when a thread is open.
 ============================================================================ */
 
 function ConversationsPanel({ adminKey }: { adminKey: string }) {
@@ -331,6 +335,7 @@ function ConversationsPanel({ adminKey }: { adminKey: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<StoredMessage[] | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
+  const [query, setQuery] = useState('');
 
   const fetchSessions = async () => {
     setRefreshing(true);
@@ -388,135 +393,245 @@ function ConversationsPanel({ adminKey }: { adminKey: string }) {
     }
   };
 
+  const filtered = sessions
+    ? sessions.filter((s) => {
+        if (!query.trim()) return true;
+        const q = query.trim().toLowerCase();
+        return (
+          s.firstUserSnippet.toLowerCase().includes(q) ||
+          s.lastSnippet.toLowerCase().includes(q) ||
+          s.sessionId.toLowerCase().includes(q)
+        );
+      })
+    : null;
+
+  const active = activeId && sessions ? sessions.find((s) => s.sessionId === activeId) : null;
+
   return (
-    <div className="space-y-6">
-      <Section
-        title="SESSIONS"
-        subtitle={
-          sessions
-            ? `${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'}`
-            : '...'
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-4">
+      {/* LEFT — sessions list */}
+      <aside
+        className={
+          'border border-ink/30 bg-paper/70 backdrop-blur-sm flex flex-col ' +
+          'lg:max-h-[calc(100vh-220px)] ' +
+          (activeId ? 'hidden lg:flex' : 'flex')
         }
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-ink-faint">
-            newest activity first · max 200
+        <div className="px-4 py-2 flex items-center justify-between bg-ink text-paper shrink-0">
+          <span className="font-mono text-[11px] tracking-[0.3em] uppercase">SESSIONS</span>
+          <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-paper/60">
+            {sessions
+              ? `${filtered?.length ?? 0}/${sessions.length} · max 200`
+              : '…'}
           </span>
-          <button
-            onClick={fetchSessions}
-            disabled={refreshing}
-            className="font-mono text-[10px] tracking-[0.3em] uppercase border border-ink/40 px-3 py-1 text-ink-mute hover:text-ink hover:border-ink disabled:opacity-30"
-          >
-            {refreshing ? 'REFRESH…' : 'REFRESH'}
-          </button>
         </div>
 
-        {error && (
-          <p className="font-mono text-[11px] tracking-wider text-rose-700/80 mb-3">{error}</p>
-        )}
+        <div className="px-3 pt-3 pb-2 shrink-0 space-y-2">
+          <div className="flex items-center gap-2 border border-ink/30 px-2 py-1 bg-white/40">
+            <span className="font-mono text-[11px] text-ink-faint">⌕</span>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜首条 / 末条 / id…"
+              className="flex-1 bg-transparent font-zh text-[12px] text-ink placeholder:text-ink-faint outline-none min-w-0"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="font-mono text-[10px] text-ink-faint hover:text-ink shrink-0"
+                title="clear"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[9px] tracking-[0.25em] uppercase text-ink-faint">
+              newest activity first
+            </span>
+            <button
+              onClick={fetchSessions}
+              disabled={refreshing}
+              className="font-mono text-[9px] tracking-[0.25em] uppercase border border-ink/40 px-2 py-0.5 text-ink-mute hover:text-ink hover:border-ink disabled:opacity-30"
+            >
+              {refreshing ? 'REFRESH…' : 'REFRESH'}
+            </button>
+          </div>
+        </div>
 
-        {!sessions && !error && (
-          <p className="font-mono text-[11px] tracking-[0.2em] text-ink-faint py-4">
-            loading…
-          </p>
-        )}
-
-        {sessions && sessions.length === 0 && (
-          <p className="font-zh text-[13px] text-ink-mute py-4">
-            还没有访客对话过。等等看。
-          </p>
-        )}
-
-        {sessions && sessions.length > 0 && (
-          <ul className="divide-y divide-ink/15">
-            {sessions.map((s) => {
-              const isActive = activeId === s.sessionId;
-              return (
-                <li key={s.sessionId} className="py-3">
-                  <div className="flex items-baseline justify-between gap-3">
+        <div className="overflow-y-auto flex-1">
+          {error && (
+            <p className="font-mono text-[11px] tracking-wider text-rose-700/80 px-3 py-3">
+              {error}
+            </p>
+          )}
+          {!sessions && !error && (
+            <p className="font-mono text-[11px] tracking-[0.2em] text-ink-faint px-3 py-4">
+              loading…
+            </p>
+          )}
+          {sessions && sessions.length === 0 && (
+            <p className="font-zh text-[13px] text-ink-mute px-3 py-4">
+              还没有访客对话过。等等看。
+            </p>
+          )}
+          {sessions && sessions.length > 0 && filtered && filtered.length === 0 && (
+            <p className="font-zh text-[12px] text-ink-mute px-3 py-4">
+              没匹配上「{query}」。
+            </p>
+          )}
+          {filtered && filtered.length > 0 && (
+            <ul className="divide-y divide-ink/10">
+              {filtered.map((s) => {
+                const isActive = activeId === s.sessionId;
+                return (
+                  <li
+                    key={s.sessionId}
+                    className={
+                      'group relative ' +
+                      (isActive
+                        ? 'bg-ink/5 border-l-2 border-l-neon-magenta'
+                        : 'border-l-2 border-l-transparent hover:bg-ink/[0.03]')
+                    }
+                  >
                     <button
                       onClick={() => openSession(s.sessionId)}
-                      className="text-left flex-1 min-w-0 group"
+                      className="text-left w-full px-3 py-2.5 min-w-0"
                     >
-                      <div className="flex items-baseline gap-3 mb-1">
-                        <span className="font-mono text-[10px] tracking-[0.2em] text-ink-faint shrink-0">
-                          {s.sessionId.slice(0, 8)}…
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="font-mono text-[9px] tracking-[0.2em] text-ink-faint shrink-0">
+                          {s.sessionId.slice(0, 6)}
                         </span>
-                        <span className="font-mono text-[10px] tracking-[0.25em] text-ink-mute shrink-0">
-                          {s.msgCount} msg
+                        <span className="font-mono text-[9px] tracking-[0.2em] text-ink-mute shrink-0">
+                          ×{s.msgCount}
                         </span>
-                        <span className="font-mono text-[10px] tracking-[0.2em] text-ink-faint shrink-0">
-                          {fmtTime(s.lastAt)}
+                        <span className="font-mono text-[9px] tracking-[0.2em] text-ink-faint shrink-0 ml-auto">
+                          {fmtRelative(s.lastAt)}
                         </span>
                       </div>
                       <div
                         className={
-                          'font-zh text-[13px] truncate ' +
-                          (isActive ? 'text-ink' : 'text-ink-soft group-hover:text-ink')
+                          'font-zh text-[12px] leading-snug line-clamp-2 ' +
+                          (isActive ? 'text-ink' : 'text-ink-soft')
                         }
                       >
                         {s.firstUserSnippet || '(empty)'}
                       </div>
+                      {s.lastSnippet && s.lastSnippet !== s.firstUserSnippet && (
+                        <div className="flex gap-1.5 mt-1 items-baseline">
+                          <span
+                            className={
+                              'font-mono text-[8px] tracking-[0.2em] uppercase shrink-0 ' +
+                              (s.lastRole === 'user'
+                                ? 'text-neon-magenta'
+                                : 'text-ink-faint')
+                            }
+                          >
+                            {s.lastRole === 'user' ? '→u' : '←a'}
+                          </span>
+                          <span className="font-zh text-[11px] text-ink-faint line-clamp-1 min-w-0">
+                            {s.lastSnippet}
+                          </span>
+                        </div>
+                      )}
                     </button>
-                    <button
-                      onClick={() => deleteSession(s.sessionId)}
-                      className="font-mono text-[9px] tracking-[0.25em] uppercase text-ink-faint hover:text-rose-700 shrink-0"
-                      title="delete this session's messages"
-                    >
-                      DEL
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Section>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </aside>
 
-      {activeId && (
-        <Section
-          title="THREAD"
-          subtitle={activeId.slice(0, 12) + '…  · oldest → newest'}
-        >
-          {threadLoading && (
-            <p className="font-mono text-[11px] tracking-[0.2em] text-ink-faint py-4">
-              loading thread…
+      {/* RIGHT — thread pane */}
+      <section
+        className={
+          'border border-ink/30 bg-paper/70 backdrop-blur-sm flex flex-col ' +
+          'lg:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 ' +
+          (activeId ? 'flex' : 'hidden lg:flex')
+        }
+      >
+        {!activeId && (
+          <div className="flex-1 flex items-center justify-center py-16">
+            <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-ink-faint">
+              select a session
             </p>
-          )}
-          {!threadLoading && thread && thread.length === 0 && (
-            <p className="font-zh text-[13px] text-ink-mute py-4">
-              这条 session 没有内容（可能刚被清掉）。
-            </p>
-          )}
-          {!threadLoading && thread && thread.length > 0 && (
-            <ol className="space-y-3">
-              {thread.map((m) => (
-                <li
-                  key={m.id}
-                  className={
-                    'border-l-2 pl-3 py-1 ' +
-                    (m.role === 'user' ? 'border-neon-magenta/60' : 'border-ink/40')
-                  }
+          </div>
+        )}
+
+        {activeId && (
+          <>
+            <div className="px-4 py-2 flex items-center justify-between bg-ink text-paper shrink-0">
+              <div className="flex items-baseline gap-3 min-w-0">
+                <button
+                  onClick={() => {
+                    setActiveId(null);
+                    setThread(null);
+                  }}
+                  className="lg:hidden font-mono text-[11px] tracking-[0.3em] uppercase text-paper/70 hover:text-paper shrink-0"
+                  title="back to list"
                 >
-                  <div className="flex items-baseline gap-3 mb-1 font-mono text-[10px] tracking-[0.25em] uppercase">
-                    <span
+                  ← LIST
+                </button>
+                <span className="font-mono text-[11px] tracking-[0.3em] uppercase">THREAD</span>
+                <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-paper/60 truncate">
+                  {activeId.slice(0, 12)}…
+                  {active && ` · ${active.msgCount} msg`}
+                  {active && ` · ${fmtTime(active.firstAt)} → ${fmtTime(active.lastAt)}`}
+                </span>
+              </div>
+              <button
+                onClick={() => deleteSession(activeId)}
+                className="font-mono text-[9px] tracking-[0.25em] uppercase text-paper/60 hover:text-rose-300 shrink-0 ml-2"
+                title="delete this session"
+              >
+                DEL
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-3">
+              {threadLoading && (
+                <p className="font-mono text-[11px] tracking-[0.2em] text-ink-faint py-4">
+                  loading thread…
+                </p>
+              )}
+              {!threadLoading && thread && thread.length === 0 && (
+                <p className="font-zh text-[13px] text-ink-mute py-4">
+                  这条 session 没有内容（可能刚被清掉）。
+                </p>
+              )}
+              {!threadLoading && thread && thread.length > 0 && (
+                <ol className="space-y-3">
+                  {thread.map((m) => (
+                    <li
+                      key={m.id}
                       className={
-                        m.role === 'user' ? 'text-neon-magenta' : 'text-ink-mute'
+                        'border-l-2 pl-3 py-1 ' +
+                        (m.role === 'user' ? 'border-neon-magenta/60' : 'border-ink/40')
                       }
                     >
-                      {m.role}
-                    </span>
-                    <span className="text-ink-faint">{fmtTime(m.createdAt)}</span>
-                  </div>
-                  <div className="font-zh text-[13px] text-ink leading-relaxed whitespace-pre-wrap break-words">
-                    {m.content}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Section>
-      )}
+                      <div className="flex items-baseline gap-3 mb-1 font-mono text-[10px] tracking-[0.25em] uppercase">
+                        <span
+                          className={
+                            m.role === 'user' ? 'text-neon-magenta' : 'text-ink-mute'
+                          }
+                        >
+                          {m.role}
+                        </span>
+                        <span className="text-ink-faint">{fmtTime(m.createdAt)}</span>
+                      </div>
+                      <div className="font-zh text-[13px] text-ink leading-relaxed whitespace-pre-wrap break-words">
+                        {m.content}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -534,4 +649,19 @@ function fmtTime(ts: number): string {
     hour12: false,
   });
   return fmt.format(d).replace(/,/g, '').replace(/\//g, '-');
+}
+
+function fmtRelative(ts: number): string {
+  const diff = Date.now() - ts;
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo}mo`;
+  return `${Math.floor(mo / 12)}y`;
 }

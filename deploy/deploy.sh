@@ -5,7 +5,8 @@
 set -euo pipefail
 cd /home/jessy/personal-site
 sudo -u jessy git pull --ff-only
-sudo -u jessy pnpm install --frozen-lockfile
+# CI=true: let pnpm rebuild node_modules without a TTY prompt when its layout changes
+sudo -u jessy env CI=true pnpm install --frozen-lockfile
 sudo -u jessy pnpm build
 if ! cmp -s deploy/jessy-lab.service /etc/systemd/system/jessy-lab.service; then
   cp deploy/jessy-lab.service /etc/systemd/system/jessy-lab.service

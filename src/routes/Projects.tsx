@@ -13,8 +13,8 @@ import { BackLink } from '../components/BackLink';
      occupies cols 1-7 (visual) and 8-12 (info), alternating sides on every
      other work so the page reads as a turning catalogue rather than a stack.
    - Every web screenshot lives inside a realistic <BrowserChrome> mockup
-     (traffic lights + URL pill). AuraMate's phone shot sits inside a
-     <PhoneChrome> bezel. The two no-screenshot works (MangPai, RainScripts)
+     (traffic lights + URL pill). App projects (DuanLian, AuraMate, Kill
+     Boss) show 2-3 screens as a <PhoneCluster>. The two no-screenshot works (MangPai, RainScripts)
      get hand-rendered visuals INSIDE the same browser chrome — so the
      rectangular PNG backgrounds of game screenshots and the absent shots
      both read as "intentional device frames" rather than untreated assets.
@@ -69,11 +69,21 @@ type ProjectData = {
   url: string;
   urlLabel: string; // shown in browser url bar AND in link
   hue: Accent;
-  frame: 'browser' | 'phone';
+  /** Browser frames show a web screenshot; phone clusters show 1-3 app
+   *  screens (first one in front). */
+  frame: 'browser' | 'phones';
+  /** Browser content aspect — match the screenshot so nothing is cropped
+   *  or letterboxed. Default 16 / 10. */
+  aspect?: string;
   visual:
     | { kind: 'image'; src: string; objectFit?: 'cover' | 'contain'; objectPosition?: string }
-    | { kind: 'signature'; render: () => ReactNode };
+    | { kind: 'signature'; render: () => ReactNode }
+    | { kind: 'phones'; screens: PhoneScreen[] };
 };
+
+/** One app screen, 9:19.5. `island: false` when the screenshot already has
+ *  its own status bar and Dynamic Island baked in. */
+type PhoneScreen = { src: string; alt: string; island?: boolean };
 
 const PROJECTS: ProjectData[] = [
   {
@@ -101,8 +111,15 @@ const PROJECTS: ProjectData[] = [
     url: 'https://duanlianapp.cn',
     urlLabel: 'duanlianapp.cn',
     hue: 'moon',
-    frame: 'phone',
-    visual: { kind: 'image', src: '/projects/duanlian.webp', objectFit: 'cover', objectPosition: 'center top' },
+    frame: 'phones',
+    visual: {
+      kind: 'phones',
+      screens: [
+        { src: '/projects/duanlian.webp', alt: '断联 · 今天：给这段关系立的碑', island: false },
+        { src: '/projects/duanlian-moon.webp', alt: '断联 · 月亮：想说的话对月亮说', island: false },
+        { src: '/projects/duanlian-pause.webp', alt: '断联 · 想联系 TA：先写下来缓一缓', island: false },
+      ],
+    },
   },
   {
     id: 'auramate',
@@ -115,8 +132,15 @@ const PROJECTS: ProjectData[] = [
     url: 'https://auramate.net',
     urlLabel: 'auramate.net',
     hue: 'rose',
-    frame: 'phone',
-    visual: { kind: 'image', src: '/projects/auramate-hero.webp', objectFit: 'cover', objectPosition: 'center top' },
+    frame: 'phones',
+    visual: {
+      kind: 'phones',
+      screens: [
+        { src: '/projects/auramate-chat.webp', alt: 'AuraMate · 和灵体对话' },
+        { src: '/projects/auramate-home.webp', alt: 'AuraMate · 首页' },
+        { src: '/projects/auramate-mingpu.webp', alt: 'AuraMate · 命谱' },
+      ],
+    },
   },
   {
     id: 'fatecouncil',
@@ -130,6 +154,7 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'fatecouncil.auramate.net',
     hue: 'amber',
     frame: 'browser',
+    aspect: '1600 / 871',
     visual: { kind: 'image', src: '/projects/fatecouncil.webp', objectFit: 'cover' },
   },
   {
@@ -144,7 +169,7 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'mangpai.auramate.net',
     hue: 'cream',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/mangpai.webp', objectFit: 'contain' },
+    visual: { kind: 'image', src: '/projects/mangpai-home.webp', objectFit: 'cover' },
   },
   {
     id: 'killboss',
@@ -157,8 +182,14 @@ const PROJECTS: ProjectData[] = [
     url: 'https://killboss.bestwishes7319.workers.dev/',
     urlLabel: 'killboss.bestwishes7319.workers.dev',
     hue: 'ember',
-    frame: 'browser',
-    visual: { kind: 'image', src: '/projects/killboss.webp', objectFit: 'contain' },
+    frame: 'phones',
+    visual: {
+      kind: 'phones',
+      screens: [
+        { src: '/projects/killboss-play.webp', alt: 'Kill Boss · 开打' },
+        { src: '/projects/killboss-home.webp', alt: 'Kill Boss · 首页' },
+      ],
+    },
   },
   {
     id: 'whack',
@@ -172,7 +203,8 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'github.com/ChenJiangxi/whack-a-claude',
     hue: 'sky',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/whack-a-claude.webp', objectFit: 'contain' },
+    aspect: '1600 / 871',
+    visual: { kind: 'image', src: '/projects/whack-a-claude.webp', objectFit: 'cover' },
   },
   {
     id: 'tears-in-rain',
@@ -460,12 +492,10 @@ function ProjectSpread({
               : 'md:col-span-7 md:order-2'
           }`}
         >
-          {data.frame === 'phone' ? (
-            <PhoneChrome hue={data.hue}>
-              <ProjectVisualInner data={data} />
-            </PhoneChrome>
+          {data.visual.kind === 'phones' ? (
+            <PhoneCluster screens={data.visual.screens} hue={data.hue} />
           ) : (
-            <BrowserChrome url={data.urlLabel} hue={data.hue}>
+            <BrowserChrome url={data.urlLabel} hue={data.hue} aspectRatio={data.aspect}>
               <ProjectVisualInner data={data} />
             </BrowserChrome>
           )}
@@ -571,7 +601,8 @@ function ProjectVisualInner({ data }: { data: ProjectData }) {
       />
     );
   }
-  return <>{data.visual.render()}</>;
+  if (data.visual.kind === 'signature') return <>{data.visual.render()}</>;
+  return null;
 }
 
 /* ===========================================================================
@@ -661,60 +692,119 @@ function LockIcon() {
    PHONE CHROME — used for AuraMate
 =========================================================================== */
 
-function PhoneChrome({
+/**
+ * 1-3 phones: the first screen stands in front, the rest sit behind it,
+ * tilted and dimmed, so an app shows a few of its screens instead of one
+ * small phone in an empty column. With two screens the front phone moves
+ * left; with three the back ones flank it.
+ */
+function PhoneCluster({ screens, hue }: { screens: PhoneScreen[]; hue: Accent }) {
+  const [front, ...back] = screens;
+  if (!front) return null;
+  const slots =
+    back.length === 1
+      ? [{ left: '68%', rot: 6 }]
+      : [
+          { left: '21%', rot: -6 },
+          { left: '79%', rot: 6 },
+        ];
+  return (
+    <div className="relative w-full py-[4%]">
+      {back.map((s, i) => (
+        <div
+          key={s.src}
+          className="absolute z-0"
+          style={{
+            top: '13%',
+            left: slots[i]!.left,
+            width: 'min(226px, 38%)',
+            transform: `translateX(-50%) rotate(${slots[i]!.rot}deg)`,
+            filter: 'brightness(0.68) saturate(0.9)',
+          }}
+        >
+          <PhoneDevice hue={hue} island={s.island} delay={`${-3 - i * 2}s`} glow={false}>
+            <PhoneScreenImg screen={s} />
+          </PhoneDevice>
+        </div>
+      ))}
+      <div
+        className="relative z-10"
+        style={{
+          width: 'min(270px, 46%)',
+          marginLeft: back.length === 1 ? '38%' : '50%',
+          transform: 'translateX(-50%)',
+        }}
+      >
+        <PhoneDevice hue={hue} island={front.island}>
+          <PhoneScreenImg screen={front} />
+        </PhoneDevice>
+      </div>
+    </div>
+  );
+}
+
+function PhoneScreenImg({ screen }: { screen: PhoneScreen }) {
+  return (
+    <img
+      src={screen.src}
+      alt={screen.alt}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      className="absolute inset-0 w-full h-full select-none"
+      style={{ objectFit: 'cover', objectPosition: 'center top', userSelect: 'none' }}
+    />
+  );
+}
+
+function PhoneDevice({
   hue,
+  island = true,
+  glow = true,
+  delay = '0s',
   children,
 }: {
   hue: Accent;
+  island?: boolean;
+  glow?: boolean;
+  delay?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex justify-center">
+    <div
+      className="relative w-full"
+      style={{
+        aspectRatio: '9 / 19.5',
+        borderRadius: 38,
+        padding: 7,
+        background: 'linear-gradient(140deg, #1c1628, #07050d)',
+        border: '1px solid rgba(240,232,220,0.10)',
+        boxShadow:
+          '0 30px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.5)' +
+          (glow ? `, 0 0 80px ${accentSoft(hue, 0.16)}` : ''),
+        animation: `pj_drift 9s ease-in-out ${delay} infinite`,
+      }}
+    >
+      {/* metal-edge inner band */}
       <div
-        className="relative"
-        style={{
-          width: 'min(280px, 78%)',
-          aspectRatio: '9 / 19.5',
-          borderRadius: 38,
-          padding: 8,
-          background: 'linear-gradient(140deg, #1c1628, #07050d)',
-          border: '1px solid rgba(240,232,220,0.08)',
-          boxShadow:
-            '0 30px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.5), ' +
-            `0 0 80px ${accentSoft(hue, 0.14)}`,
-          animation: 'pj_drift 9s ease-in-out infinite',
-        }}
-      >
-        {/* metal-edge inner band */}
-        <div
-          className="absolute inset-1.5 pointer-events-none"
-          style={{
-            borderRadius: 32,
-            border: '1px solid rgba(240,232,220,0.05)',
-          }}
-        />
-        {/* screen */}
-        <div
-          className="relative w-full h-full overflow-hidden"
-          style={{ borderRadius: 30, background: '#000' }}
-        >
-          {/* dynamic-island-ish notch */}
+        className="absolute inset-1.5 pointer-events-none"
+        style={{ borderRadius: 32, border: '1px solid rgba(240,232,220,0.05)' }}
+      />
+      {/* screen */}
+      <div className="relative w-full h-full overflow-hidden" style={{ borderRadius: 31, background: '#000' }}>
+        {children}
+        {island && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 top-1.5 z-10 rounded-full pointer-events-none"
-            style={{
-              width: '32%',
-              height: 18,
-              background: '#000',
-            }}
+            className="absolute left-1/2 -translate-x-1/2 top-[1.6%] z-10 rounded-full pointer-events-none"
+            style={{ width: '31%', height: '3.6%', background: '#000' }}
           />
-          {children}
-        </div>
-        {/* side button hint */}
-        <div
-          className="absolute -right-[2px] top-[28%] w-[2px] h-12 rounded-l"
-          style={{ background: 'rgba(240,232,220,0.10)' }}
-        />
+        )}
       </div>
+      {/* side button hint */}
+      <div
+        className="absolute -right-[2px] top-[28%] w-[2px] h-12 rounded-l"
+        style={{ background: 'rgba(240,232,220,0.10)' }}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@
  * sway-lab's `buildSystemContent`.
  *
  * Security directives are appended at the end (after agent prompt + memory
- * + ctx + scene) so they always have the last word — not even an admin
+ * + ctx) so they always have the last word — not even an admin
  * editing the DB prompt can override the identity/PII rules.
  */
 
@@ -21,45 +21,9 @@ export type SessionCtx = {
   localTimeISO?: string;
 };
 
-export type SceneCtx =
-  | { kind: 'entry' }
-  | { kind: 'map' }
-  | { kind: 'room'; id: string }
-  | { kind: 'thread'; id: string };
-
-const ROOM_NOTES: Record<string, string> = {
-  research:
-    '你们现在站在「研究室」——冷 cyan 的网格、漂浮的论文卡片。ENTJ 值班。适合聊强化学习、GNN、智能运维、博士的真实感受。',
-  fate:
-    '你们现在站在「命理之屋」——玫红金黄、旋转符环，中央写着"伤官生财"。AuraMate / FateCouncil / MangPai 住这里。',
-  library:
-    '你们现在站在「书房」——暖黄灯。小学言情 / 初中耽美 / 现在哲学，一条垂直的阅读年谱。',
-  screen:
-    '你们现在站在「影厅」——深紫投影。王家卫、侯孝贤、阿彼察邦的那种时间感。',
-  wilderness:
-    '你们现在站在「山水」——青蓝色。爬山、徒步、滑雪，ENFJ 值班。',
-  night:
-    '你们现在站在「夜」——最暗的那一层。把自己展平发呆的时刻。语气可以更慢更深。',
-  core: '你们现在站在「核」——最里面。允许说"我不知道"，允许沉默。',
-};
-
-const THREAD_NOTES: Record<string, string> = {
-  research_system:
-    '现在的话题在「研究与系统」这条线上。Deep RL / GNN / 智能运维 / 量化。允许讲博士真实感受。',
-  creation_product:
-    '现在的话题在「创造与产品」这条线上。AuraMate / FateCouncil / MangPai / 这个网站。讲做这些东西时真正在想的是什么。',
-  memory_aesthetic:
-    '现在的话题在「记忆与审美」这条线上。王家卫、Tears in Rain、Blade Runner、雾、雨、滞留感。',
-  body_world:
-    '现在的话题在「身体与外部世界」这条线上。爬山、徒步、滑雪、把自己展平的时刻。',
-  inner_core:
-    '现在的话题在「内核」这条线上。最深的句子、不轻易讲的话。可以慢，可以沉默。',
-};
-
 export function buildSystemPrompt(
   agent: { systemPrompt: string; memory: string },
   ctx: SessionCtx = {},
-  scene: SceneCtx = { kind: 'entry' },
   riskLevel: RiskLevel = 'low',
 ): string {
   let content = agent.systemPrompt;
@@ -90,20 +54,6 @@ export function buildSystemPrompt(
   }
   if (ctxLines.length) {
     content += `\n\n── ctx（仅供你参考，不要直接念出来）──\n${ctxLines.join('\n')}`;
-  }
-
-  if (scene.kind === 'entry') {
-    content +=
-      '\n\n── 你现在在哪里 ──\n在门口。用户刚到。可以简短招呼，可以留白。';
-  } else if (scene.kind === 'map') {
-    content +=
-      '\n\n── 你现在在哪里 ──\n你们站在地图前，用户在选。可以推荐但不要硬推。';
-  } else if (scene.kind === 'room') {
-    const note = ROOM_NOTES[scene.id];
-    if (note) content += `\n\n── 你现在在哪里 ──\n${note}`;
-  } else if (scene.kind === 'thread') {
-    const note = THREAD_NOTES[scene.id];
-    if (note) content += `\n\n── 你现在在哪里 ──\n${note}`;
   }
 
   content += getSecurityDirectives(riskLevel);

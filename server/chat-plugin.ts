@@ -1,7 +1,9 @@
-import type { Plugin } from 'vite';
+import type { Plugin, Connect } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { buildSystemPrompt, type SessionCtx, type SceneCtx } from './prompt';
+import { buildSystemPrompt, type SessionCtx } from './prompt';
 import { resolveTool } from './tool-data';
+import { PROJECTS } from '../src/data/projects';
+import { linkKey, linksIn } from '../src/lib/links';
 import { getAgentConfig } from './agent-config';
 import { appendMessage, clearMessages, loadMessages } from './db';
 import {
@@ -26,40 +28,13 @@ const TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'reveal_thread',
-      description:
-        '把对话切到一条叙事线，前端会浮出对应的 thread 面板。research_system=研究/RL/GNN/论文；creation_product=AuraMate/FateCouncil/MangPai/这个网站；memory_aesthetic=电影/王家卫/审美；body_world=山/徒步/滑雪；inner_core=内核/最深的句子。**严禁**在闲聊、问候、或话题尚未明确转入某条线时调用。',
-      parameters: {
-        type: 'object',
-        properties: {
-          id: {
-            type: 'string',
-            enum: [
-              'research_system',
-              'creation_product',
-              'memory_aesthetic',
-              'body_world',
-              'inner_core',
-            ],
-          },
-        },
-        required: ['id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'reveal_project',
       description:
-        '浮现一个项目卡片。仅当用户问起某个**具体**项目（AuraMate / FateCouncil / MangPai / Tears in Rain / Kill Boss / Whack-a-Claude / Rain Scripts）或你主动要讲这个项目的细节时调用。**严禁**在笼统聊天时调用。',
+        '查一个项目的资料（简介、网址），页面会在你的回复下面附上它的链接。用在访客问起某个**具体**项目（是什么 / 怎么用 / 在哪 / 要链接）时。**严禁**在笼统聊天时调用。',
       parameters: {
         type: 'object',
         properties: {
-          id: {
-            type: 'string',
-            enum: ['auramate', 'fatecouncil', 'mangpai', 'tears-in-rain', 'killboss', 'whack', 'rainscripts', 'personal-site'],
-          },
+          id: { type: 'string', enum: PROJECTS.map((p) => p.id) },
         },
         required: ['id'],
       },
@@ -70,54 +45,11 @@ const TOOLS = [
     function: {
       name: 'show_paper',
       description:
-        '聚光一篇论文。仅当用户问到**具体**研究方向并能对应到某篇时调用。p1=MHGNN-PPO多依赖制造系统维护; p2=IDAPPO柔性多机调度; p3=城市绿地语义分割。**严禁**泛泛聊研究时调用。',
+        '查一篇论文的资料，页面会附上论文链接。仅当用户问到**具体**研究方向并能对应到某篇时调用。p1=MHGNN-PPO多依赖制造系统维护; p2=IDAPPO柔性多机调度; p3=城市绿地语义分割。**严禁**泛泛聊研究时调用。',
       parameters: {
         type: 'object',
         properties: { id: { type: 'string', enum: ['p1', 'p2', 'p3'] } },
         required: ['id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'advance_clarity',
-      description:
-        '把 clarity 推到至少 value（25/50/75/100）——这是叙事节奏控制，让肖像 reveal 的进度跟上对话深度。**只在感到访客真的在问深问题时用**（问你怎么活着、怕什么、最快乐的时刻、为什么停在这里）。一次对话最多 2–3 次。**不是聊得久就推**。',
-      parameters: {
-        type: 'object',
-        properties: {
-          value: { type: 'integer', enum: [25, 50, 75, 100] },
-        },
-        required: ['value'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'shift_mood',
-      description:
-        '改变空间色温。**一次对话至多 1 次**。仅当气氛有明显转向时用：warm=亲密; cold=讨论研究; dreamy=抒情; intimate=最私密。',
-      parameters: {
-        type: 'object',
-        properties: {
-          mood: { type: 'string', enum: ['warm', 'cold', 'dreamy', 'intimate'] },
-        },
-        required: ['mood'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'navigate_to',
-      description:
-        '跳到另一个页面。to=/projects 仅当用户用祈使句要"作品清单/列表/索引"时；to=/arts 仅当用户明确要看视觉作品/画/审美样本时。**严禁**在介绍单个项目、闲聊、或仅仅聊到电影/审美时调用——先用文字回应，等用户说"带我去看"才跳。',
-      parameters: {
-        type: 'object',
-        properties: { to: { type: 'string', enum: ['/projects', '/arts'] } },
-        required: ['to'],
       },
     },
   },
@@ -127,175 +59,190 @@ export function chatApiPlugin(): Plugin {
   return {
     name: 'chat-api',
     configureServer(server) {
-      // GET  /api/history?sessionId=xxx       → { messages: [{ role, content, ts }] }
-      // POST /api/history (body: { sessionId }) → 200 ok (clears that session)
-      server.middlewares.use('/api/history', async (req, res) => {
-        try {
-          if (req.method === 'GET') {
-            const url = new URL(req.url ?? '', 'http://localhost');
-            const sessionId = url.searchParams.get('sessionId') ?? '';
-            if (!sessionId) {
-              res.statusCode = 400;
-              res.end('sessionId required');
-              return;
-            }
-            const rows = loadMessages(sessionId, 50);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(
-              JSON.stringify({
-                messages: rows.map((r) => ({
-                  role: r.role,
-                  content: r.content,
-                  ts: r.createdAt,
-                })),
-              }),
-            );
-            return;
-          }
-          if (req.method === 'DELETE') {
-            const url = new URL(req.url ?? '', 'http://localhost');
-            const sessionId = url.searchParams.get('sessionId') ?? '';
-            if (!sessionId) {
-              res.statusCode = 400;
-              res.end('sessionId required');
-              return;
-            }
-            clearMessages(sessionId);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true }));
-            return;
-          }
-          res.statusCode = 405;
-          res.end('method not allowed');
-        } catch (err: any) {
-          res.statusCode = 500;
-          res.end(err?.message || 'unknown error');
-        }
-      });
-
-      server.middlewares.use('/api/chat', async (req, res) => {
-        if (req.method !== 'POST') {
-          res.statusCode = 405;
-          res.end('method not allowed');
-          return;
-        }
-
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache, no-transform',
-          Connection: 'keep-alive',
-        });
-
-        // Streaming output goes through a redactor that catches the real
-        // Chinese name even if it straddles two SSE chunks. Non-delta events
-        // (tool, done, error) bypass redaction.
-        const redactor = new StreamRedactor();
-        const writeRaw = (event: string, data: unknown) => {
-          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-        };
-        const write = (event: string, data: unknown) => {
-          if (event === 'delta' && data && typeof (data as { content?: unknown }).content === 'string') {
-            const safe = redactor.push((data as { content: string }).content);
-            if (safe) writeRaw('delta', { content: safe });
-            return;
-          }
-          writeRaw(event, data);
-        };
-
-        try {
-          const body = (await readJson(req)) as {
-            sessionId?: string;
-            userMessage?: string;
-            scene?: SceneCtx;
-            localTimeISO?: string;
-          };
-
-          const sessionId = (body.sessionId ?? '').trim();
-          const rawUserMessage = (body.userMessage ?? '').trim();
-          if (!sessionId || !rawUserMessage) {
-            write('error', { message: 'sessionId and userMessage are required' });
-            res.end();
-            return;
-          }
-
-          // Load history from DB (sway-lab style — never trust client history).
-          const priorRows = loadMessages(sessionId, 50);
-          const isReturning = priorRows.length > 0;
-          const lastTs = priorRows.at(-1)?.createdAt ?? null;
-          const minutesSinceLastMessage =
-            lastTs == null ? null : Math.round((Date.now() - lastTs) / 60_000);
-
-          // Sanitize incoming message and assess session-level risk.
-          const { sanitized: safeMessage, truncated } = sanitizeMessage(rawUserMessage);
-          const userMessage = truncated ? safeMessage + '\n[消息过长，已截断]' : safeMessage;
-          const { level: riskLevel } = assessSessionRisk([
-            ...priorRows.map((r) => ({ role: r.role, content: r.content })),
-            { role: 'user' as const, content: userMessage },
-          ]);
-
-          // Persist user message immediately (sway-lab pattern).
-          appendMessage(sessionId, 'user', userMessage);
-
-          const ctx: SessionCtx = {
-            sessionId,
-            isReturning,
-            minutesSinceLastMessage,
-            localTimeISO: body.localTimeISO ?? new Date().toISOString(),
-          };
-
-          const apiKey = process.env.DEEPSEEK_API_KEY;
-          const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
-          const model = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-
-          if (!apiKey) {
-            const fallback = await fallbackStream(write, userMessage, isReturning);
-            const fbTail = redactor.flush();
-            if (fbTail) writeRaw('delta', { content: fbTail });
-            appendMessage(sessionId, 'assistant', redactRealName(fallback));
-            write('done', {});
-            res.end();
-            return;
-          }
-
-          const agent = getAgentConfig();
-          const systemPrompt = buildSystemPrompt(agent, ctx, body.scene, riskLevel);
-
-          const messages: ChatMessage[] = [
-            { role: 'system', content: systemPrompt },
-            ...priorRows.map((r) => ({ role: r.role, content: r.content })),
-            { role: 'user', content: userMessage },
-          ];
-
-          const fullAssistant = await runTwoRoundStream({
-            apiKey,
-            baseUrl,
-            model,
-            messages,
-            write,
-          });
-
-          // Flush any held-back chars from the redactor before signalling done.
-          const tail = redactor.flush();
-          if (tail) writeRaw('delta', { content: tail });
-
-          if (fullAssistant.trim()) {
-            appendMessage(sessionId, 'assistant', redactRealName(fullAssistant));
-          }
-
-          write('done', {});
-          res.end();
-        } catch (err: any) {
-          console.error('[chat-api]', err);
-          try {
-            write('error', { message: err?.message || 'unknown error' });
-            res.end();
-          } catch {
-            /* closed */
-          }
-        }
-      });
+      registerChatRoutes(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      registerChatRoutes(server.middlewares);
     },
   };
+}
+
+function registerChatRoutes(middlewares: Connect.Server) {
+  // GET  /api/history?sessionId=xxx       → { messages: [{ role, content, ts }] }
+  // POST /api/history (body: { sessionId }) → 200 ok (clears that session)
+  middlewares.use('/api/history', async (req, res) => {
+    try {
+      if (req.method === 'GET') {
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const sessionId = url.searchParams.get('sessionId') ?? '';
+        if (!sessionId) {
+          res.statusCode = 400;
+          res.end('sessionId required');
+          return;
+        }
+        const rows = loadMessages(sessionId, 50);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            messages: rows.map((r) => ({
+              role: r.role,
+              content: r.content,
+              ts: r.createdAt,
+            })),
+          }),
+        );
+        return;
+      }
+      if (req.method === 'DELETE') {
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const sessionId = url.searchParams.get('sessionId') ?? '';
+        if (!sessionId) {
+          res.statusCode = 400;
+          res.end('sessionId required');
+          return;
+        }
+        clearMessages(sessionId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+      res.statusCode = 405;
+      res.end('method not allowed');
+    } catch (err: any) {
+      res.statusCode = 500;
+      res.end(err?.message || 'unknown error');
+    }
+  });
+
+  middlewares.use('/api/chat', async (req, res) => {
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.end('method not allowed');
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    });
+
+    // Streaming output goes through a redactor that catches the real
+    // Chinese name even if it straddles two SSE chunks. Non-delta events
+    // (tool, done, error) bypass redaction.
+    const redactor = new StreamRedactor();
+    const writeRaw = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    const write = (event: string, data: unknown) => {
+      if (event === 'delta' && data && typeof (data as { content?: unknown }).content === 'string') {
+        const safe = redactor.push((data as { content: string }).content);
+        if (safe) writeRaw('delta', { content: safe });
+        return;
+      }
+      writeRaw(event, data);
+    };
+
+    try {
+      const body = (await readJson(req)) as {
+        sessionId?: string;
+        userMessage?: string;
+        localTimeISO?: string;
+      };
+
+      const sessionId = (body.sessionId ?? '').trim();
+      const rawUserMessage = (body.userMessage ?? '').trim();
+      if (!sessionId || !rawUserMessage) {
+        write('error', { message: 'sessionId and userMessage are required' });
+        res.end();
+        return;
+      }
+
+      // Load history from DB (sway-lab style — never trust client history).
+      const priorRows = loadMessages(sessionId, 50);
+      const isReturning = priorRows.length > 0;
+      const lastTs = priorRows.at(-1)?.createdAt ?? null;
+      const minutesSinceLastMessage =
+        lastTs == null ? null : Math.round((Date.now() - lastTs) / 60_000);
+
+      // Sanitize incoming message and assess session-level risk.
+      const { sanitized: safeMessage, truncated } = sanitizeMessage(rawUserMessage);
+      const userMessage = truncated ? safeMessage + '\n[消息过长，已截断]' : safeMessage;
+      const { level: riskLevel } = assessSessionRisk([
+        ...priorRows.map((r) => ({ role: r.role, content: r.content })),
+        { role: 'user' as const, content: userMessage },
+      ]);
+
+      // Persist user message immediately (sway-lab pattern).
+      appendMessage(sessionId, 'user', userMessage);
+
+      const ctx: SessionCtx = {
+        sessionId,
+        isReturning,
+        minutesSinceLastMessage,
+        localTimeISO: body.localTimeISO ?? new Date().toISOString(),
+      };
+
+      const apiKey = process.env.DEEPSEEK_API_KEY;
+      const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+      const model = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+
+      if (!apiKey) {
+        const fallback = await fallbackStream(write, userMessage, isReturning);
+        const fbTail = redactor.flush();
+        if (fbTail) writeRaw('delta', { content: fbTail });
+        appendMessage(sessionId, 'assistant', redactRealName(fallback));
+        write('done', {});
+        res.end();
+        return;
+      }
+
+      const agent = getAgentConfig();
+      const systemPrompt = buildSystemPrompt(agent, ctx, riskLevel);
+
+      const messages: ChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+        ...priorRows.map((r) => ({ role: r.role, content: r.content })),
+        { role: 'user', content: userMessage },
+      ];
+
+      const { text: fullAssistant, links: toolLinks } = await runTwoRoundStream({
+        apiKey,
+        baseUrl,
+        model,
+        messages,
+        write,
+      });
+
+      // Flush any held-back chars from the redactor before signalling done.
+      const tail = redactor.flush();
+      if (tail) writeRaw('delta', { content: tail });
+
+      // Links from tool lookups the reply didn't spell out: shown as chips
+      // now, and saved on the message so they come back with the history.
+      const present = new Set(linksIn(fullAssistant).map((l) => linkKey(l.href)));
+      const extraLinks = [...new Set(toolLinks)].filter((l) => !present.has(linkKey(l)));
+      if (extraLinks.length) writeRaw('links', { links: extraLinks });
+
+      if (fullAssistant.trim()) {
+        const stored = extraLinks.length
+          ? `${fullAssistant}\n${extraLinks.join(' ')}`
+          : fullAssistant;
+        appendMessage(sessionId, 'assistant', redactRealName(stored));
+      }
+
+      write('done', {});
+      res.end();
+    } catch (err: any) {
+      console.error('[chat-api]', err);
+      try {
+        write('error', { message: err?.message || 'unknown error' });
+        res.end();
+      } catch {
+        /* closed */
+      }
+    }
+  });
 }
 
 type ChatMessage = { role: string; content: string | null; tool_calls?: unknown; tool_call_id?: string };
@@ -306,7 +253,7 @@ async function runTwoRoundStream(args: {
   model: string;
   messages: ChatMessage[];
   write: (event: string, data: unknown) => void;
-}): Promise<string> {
+}): Promise<{ text: string; links: string[] }> {
   // ── Round 1 ───────────────────────────────────────────────────────
   const round1 = await streamCompletion({
     apiKey: args.apiKey,
@@ -318,7 +265,7 @@ async function runTwoRoundStream(args: {
   });
 
   if (round1.toolCalls.length === 0) {
-    return round1.content;
+    return { text: round1.content, links: [] };
   }
 
   // Emit UI events for each tool call right away.
@@ -343,6 +290,7 @@ async function runTwoRoundStream(args: {
     })),
   };
 
+  const links: string[] = [];
   const toolMessages: ChatMessage[] = round1.toolCalls.map((tc) => {
     let parsedArgs: Record<string, unknown> = {};
     try {
@@ -350,9 +298,11 @@ async function runTwoRoundStream(args: {
     } catch {
       /* ignore */
     }
+    const result = resolveTool(tc.name, parsedArgs as Record<string, never>);
+    if (result.link) links.push(result.link);
     return {
       role: 'tool',
-      content: resolveTool(tc.name, parsedArgs as Record<string, never>),
+      content: result.content,
       tool_call_id: tc.id,
     };
   });
@@ -368,7 +318,7 @@ async function runTwoRoundStream(args: {
     onDelta: (chunk) => args.write('delta', { content: chunk }),
   });
 
-  return (round1.content + round2.content).trim();
+  return { text: (round1.content + round2.content).trim(), links };
 }
 
 type ToolCallAcc = { id: string; name: string; arguments: string };

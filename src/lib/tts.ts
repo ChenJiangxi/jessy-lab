@@ -15,6 +15,8 @@
  * once and tap an AnalyserNode for RMS readings while audio plays.
  */
 
+import { speakLinks } from './links';
+
 let sharedAudio: HTMLAudioElement | null = null;
 let audioCtx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
@@ -99,7 +101,7 @@ export function unlockAudio(): void {
 
 /** Strip markdown / link / parenthetical-direction noise before sending to TTS. */
 export function cleanForTTS(text: string): string {
-  return text
+  return speakLinks(text)                      // /projects → 作品页, URLs dropped
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // [label](url) → label
     .replace(/\*\*(.+?)\*\*/g, '$1')           // **bold**
     .replace(/`([^`]+)`/g, '$1')               // `code`

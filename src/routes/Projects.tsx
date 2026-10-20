@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { useScrollToHash } from '../lib/useScrollToHash';
 import { BrandMark } from '../components/BrandMark';
 import { BackLink } from '../components/BackLink';
 
@@ -28,6 +29,8 @@ import { BackLink } from '../components/BackLink';
 ============================================================================ */
 
 type Accent =
+  | 'gold'
+  | 'moon'
   | 'rose'
   | 'amber'
   | 'cream'
@@ -37,6 +40,8 @@ type Accent =
   | 'lavender';
 
 const ACCENT: Record<Accent, string> = {
+  gold: 'rgba(240,200,130,0.90)',
+  moon: 'rgba(196,208,240,0.88)',
   rose: 'rgba(255,140,220,0.85)',
   amber: 'rgba(255,200,120,0.85)',
   cream: 'rgba(255,240,200,0.80)',
@@ -55,7 +60,7 @@ const accentSoft = (h: Accent, alpha: number): string =>
 
 type ProjectData = {
   id: string;
-  index: string; // P-001..P-007
+  index: string; // P-001..P-009
   en: string;
   zh: string;
   tagline: string;
@@ -72,8 +77,36 @@ type ProjectData = {
 
 const PROJECTS: ProjectData[] = [
   {
-    id: 'auramate',
+    id: 'xuanji',
     index: 'P-001',
+    en: 'Xuanji',
+    zh: '璇 玑',
+    tagline: 'Three lineages, one chart, read side by side.',
+    body: '盲派八字、紫微斗数、印度占星，三套体系各自排盘、各自推演。同一个问题，三家一致的地方和吵起来的地方都并列摆出来，各家的依据也一起给你看，不替你把分歧抹平。',
+    tech: '三个流派各一个 agent，结论不投票、不取平均；共识和分歧分开呈现。网页直接用。',
+    url: 'https://xuanji.life',
+    urlLabel: 'xuanji.life',
+    hue: 'gold',
+    frame: 'browser',
+    visual: { kind: 'image', src: '/projects/xuanji.webp', objectFit: 'cover', objectPosition: 'center' },
+  },
+  {
+    id: 'duanlian',
+    index: 'P-002',
+    en: 'DuanLian',
+    zh: '断 联',
+    tagline: 'Leave the missing here. Take your life back.',
+    body: '一个陪人走过分手后那段日子的 iPhone App。给这段关系立一块碑；又想联系 TA 的时候，先把想发的话写下来缓一缓；最难熬的那一会儿，有月亮陪你说话。没发出去的话，可以烧掉，也可以撕掉。',
+    tech: '不劝你放下，只是让冲动和行动之间多一点距离。核心工具免费，App Store 美国区已上架。',
+    url: 'https://duanlianapp.cn',
+    urlLabel: 'duanlianapp.cn',
+    hue: 'moon',
+    frame: 'phone',
+    visual: { kind: 'image', src: '/projects/duanlian.webp', objectFit: 'cover', objectPosition: 'center top' },
+  },
+  {
+    id: 'auramate',
+    index: 'P-003',
     en: 'AuraMate',
     zh: '灵 伴',
     tagline: 'A presence you can keep, not a one-shot reading.',
@@ -83,11 +116,11 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'auramate.net',
     hue: 'rose',
     frame: 'phone',
-    visual: { kind: 'image', src: '/projects/auramate-hero.png', objectFit: 'cover', objectPosition: 'center top' },
+    visual: { kind: 'image', src: '/projects/auramate-hero.webp', objectFit: 'cover', objectPosition: 'center top' },
   },
   {
     id: 'fatecouncil',
-    index: 'P-002',
+    index: 'P-004',
     en: 'FateCouncil',
     zh: '命 理 研 讨 会',
     tagline: 'A quorum of ghosts, debating one chart.',
@@ -97,11 +130,11 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'fatecouncil.auramate.net',
     hue: 'amber',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/fatecouncil.png', objectFit: 'cover' },
+    visual: { kind: 'image', src: '/projects/fatecouncil.webp', objectFit: 'cover' },
   },
   {
     id: 'mangpai',
-    index: 'P-003',
+    index: 'P-005',
     en: 'MangPai',
     zh: '盲 派',
     tagline: 'One voice, one lineage.',
@@ -111,11 +144,11 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'mangpai.auramate.net',
     hue: 'cream',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/mangpai.png', objectFit: 'contain' },
+    visual: { kind: 'image', src: '/projects/mangpai.webp', objectFit: 'contain' },
   },
   {
     id: 'killboss',
-    index: 'P-004',
+    index: 'P-006',
     en: 'Kill Boss',
     zh: '爆 锤 老 板',
     tagline: 'A weekend toy. Not a product.',
@@ -125,11 +158,11 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'killboss.bestwishes7319.workers.dev',
     hue: 'ember',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/killboss.png', objectFit: 'contain' },
+    visual: { kind: 'image', src: '/projects/killboss.webp', objectFit: 'contain' },
   },
   {
     id: 'whack',
-    index: 'P-005',
+    index: 'P-007',
     en: 'Whack-a-Claude',
     zh: '敲 一 下 Claude',
     tagline: 'Waiting is a form of gameplay.',
@@ -139,11 +172,11 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'github.com/ChenJiangxi/whack-a-claude',
     hue: 'sky',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/whack-a-claude.png', objectFit: 'contain' },
+    visual: { kind: 'image', src: '/projects/whack-a-claude.webp', objectFit: 'contain' },
   },
   {
-    id: 'tears',
-    index: 'P-006',
+    id: 'tears-in-rain',
+    index: 'P-008',
     en: 'Tears in Rain',
     zh: '雨 中 泪',
     tagline: 'A window that will not dry. A typewriter without memory.',
@@ -156,7 +189,7 @@ const PROJECTS: ProjectData[] = [
   },
   {
     id: 'rainscripts',
-    index: 'P-007',
+    index: 'P-009',
     en: 'Rain Scripts',
     zh: '雨 夜 念 白',
     tagline: 'A script meant to be read alone.',
@@ -171,7 +204,7 @@ const PROJECTS: ProjectData[] = [
 ];
 
 type ChapterData = {
-  num: 'I' | 'II' | 'III';
+  num: 'I' | 'II' | 'III' | 'IV';
   zh: string;
   en: string;
   rationale: string;
@@ -181,24 +214,31 @@ type ChapterData = {
 const CHAPTERS: ChapterData[] = [
   {
     num: 'I',
+    zh: '上 线',
+    en: 'NOW SHIPPING',
+    rationale: '最近在做的两个产品，都已经上线：一个看命，一个陪人走出分手。',
+    ids: ['xuanji', 'duanlian'],
+  },
+  {
+    num: 'II',
     zh: '命 理',
     en: 'TRINITY OF FATE',
     rationale: '同一个引擎，三种说话方式：长期陪伴 · 众声议会 · 独尊一派。',
     ids: ['auramate', 'fatecouncil', 'mangpai'],
   },
   {
-    num: 'II',
+    num: 'III',
     zh: '玩 具',
     en: 'TOYS',
     rationale: '不解决问题。让你出一口气，或者让等模型这件事不那么难熬。',
     ids: ['killboss', 'whack'],
   },
   {
-    num: 'III',
+    num: 'IV',
     zh: '雾 中',
     en: 'IN THE FOG',
     rationale: '把电影的某一帧抽出来，让它一直停在那里。',
-    ids: ['tears', 'rainscripts'],
+    ids: ['tears-in-rain', 'rainscripts'],
   },
 ];
 
@@ -207,6 +247,7 @@ const CHAPTERS: ChapterData[] = [
 =========================================================================== */
 
 export default function Projects() {
+  useScrollToHash();
   return (
     <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#1a1525] text-[#f0e8dc]">
       <PageBg />
@@ -407,7 +448,8 @@ function ProjectSpread({
   return (
     <article
       ref={ref}
-      className="px-6 md:px-16 lg:px-24 py-16 md:py-24 max-w-7xl mx-auto pj-reveal"
+      id={data.id}
+      className="px-6 md:px-16 lg:px-24 py-16 md:py-24 max-w-7xl mx-auto pj-reveal scroll-mt-4"
     >
       <div className="grid grid-cols-12 gap-8 md:gap-12 items-center">
         {/* VISUAL */}
@@ -516,7 +558,9 @@ function ProjectVisualInner({ data }: { data: ProjectData }) {
     return (
       <img
         src={data.visual.src}
-        alt=""
+        alt={data.en}
+        loading="lazy"
+        decoding="async"
         draggable={false}
         className="absolute inset-0 w-full h-full select-none"
         style={{

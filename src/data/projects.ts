@@ -21,6 +21,33 @@ export type Project = {
 
 export const PROJECTS: Project[] = [
   {
+    id: 'xuanji',
+    kind: 'fate',
+    name: 'Xuanji',
+    chineseName: '璇玑',
+    url: 'https://xuanji.life',
+    tagline: '盲派八字、紫微斗数、印度占星，三盘合参。',
+    description:
+      '同一个生辰，三套命理体系各自排盘、各自推演。一致的地方和分歧的地方并列摆出来，各家的依据也一起给你看，不替你把分歧抹平。网页直接用，开始排盘就行。',
+    manifesto:
+      '命理流派之间本来就会吵架。与其假装只有一个答案，不如把三家的说法和理由都摆上桌，让人自己看清哪里是共识、哪里是分歧。',
+    accent: 'from-amber-200 via-yellow-300 to-orange-300',
+    year: '2026',
+  },
+  {
+    id: 'duanlian',
+    kind: 'workshop',
+    name: 'DuanLian',
+    chineseName: '断联',
+    url: 'https://duanlianapp.cn',
+    tagline: '把想念留在这里，把生活还给自己。',
+    description:
+      '一个陪人走过分手后那段日子的 iPhone App。给这段关系立一块碑；又想联系 TA 的时候，先把想发的话写下来缓一缓；最难熬的那一会儿，有月亮陪你说话。没发出去的话可以烧掉、撕掉。核心工具免费，App Store 美国区已上架。',
+    manifesto: '分手之后先照顾好自己。不是劝你放下，是让冲动和行动之间多一点距离。',
+    accent: 'from-slate-300 via-indigo-300 to-blue-300',
+    year: '2026',
+  },
+  {
     id: 'auramate',
     kind: 'fate',
     name: 'AuraMate',

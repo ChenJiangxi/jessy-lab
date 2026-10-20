@@ -1,11 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
-import Admin from './routes/Admin';
 import V2 from './routes/V2';
 import Placeholder from './routes/Placeholder';
-import Projects from './routes/Projects';
-import Arts from './routes/Arts';
+import { RESEARCH_URL } from './lib/links';
+
+// Sub-pages load on demand so the chat page ships less JS on first visit.
+const Projects = lazy(() => import('./routes/Projects'));
+const Arts = lazy(() => import('./routes/Arts'));
+const Admin = lazy(() => import('./routes/Admin'));
+
+function Page({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 bg-[#0d0a14]" />}>{children}</Suspense>
+  );
+}
 // Self-hosted fonts (replaces fonts.googleapis.com, blocked from mainland).
 import '@fontsource-variable/inter';
 import '@fontsource-variable/bricolage-grotesque';
@@ -23,15 +32,15 @@ import './styles.css';
  *  no in-app placeholder needed. */
 function ResearchRedirect() {
   useEffect(() => {
-    window.location.replace('https://chenjiangxi.github.io/home-page/');
+    window.location.replace(RESEARCH_URL);
   }, []);
   return null;
 }
 
 const router = createBrowserRouter([
   { path: '/', element: <V2 /> },
-  { path: '/projects', element: <Projects /> },
-  { path: '/arts', element: <Arts /> },
+  { path: '/projects', element: <Page><Projects /></Page> },
+  { path: '/arts', element: <Page><Arts /></Page> },
   { path: '/research', element: <ResearchRedirect /> },
   {
     path: '/contact',
@@ -56,7 +65,7 @@ const router = createBrowserRouter([
       />
     ),
   },
-  { path: '/admin', element: <Admin /> },
+  { path: '/admin', element: <Page><Admin /></Page> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 

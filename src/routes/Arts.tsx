@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useScrollToHash } from '../lib/useScrollToHash';
 import { BrandMark } from '../components/BrandMark';
 import { BackLink } from '../components/BackLink';
 
@@ -45,7 +46,7 @@ const VIDEOS: VideoPiece[] = [
     en: 'Pour, in pink',
     year: '2018',
     medium: 'Acrylic pour on canvas · 60 × 80 cm',
-    poster: '/arts/pour.jpg',
+    poster: '/arts/pour.webp',
     video: '/arts/videos/pour.mp4',
     aspect: 4 / 3,
   },
@@ -55,7 +56,7 @@ const VIDEOS: VideoPiece[] = [
     en: 'Fire and embers',
     year: '2018',
     medium: 'Oil on canvas · 50 × 60 cm',
-    poster: '/arts/fire.jpg',
+    poster: '/arts/fire.webp',
     video: '/arts/videos/fire.mp4',
     aspect: 4 / 5,
   },
@@ -65,7 +66,7 @@ const VIDEOS: VideoPiece[] = [
     en: 'Workshop floor',
     year: '2017',
     medium: 'Photograph · Barcelona',
-    poster: '/arts/workshop.jpg',
+    poster: '/arts/workshop.webp',
     video: '/arts/videos/workshop.mp4',
     aspect: 3 / 2,
   },
@@ -75,7 +76,7 @@ const VIDEOS: VideoPiece[] = [
     en: 'Decadent growth',
     year: '2017',
     medium: 'Charcoal on newsprint · 80 × 200 cm',
-    poster: '/arts/decadent.jpg',
+    poster: '/arts/decadent.webp',
     video: '/arts/videos/decadent.mp4',
     aspect: 1 / 2.3,
   },
@@ -85,16 +86,16 @@ const VIDEOS: VideoPiece[] = [
     en: 'After Picasso · Violin and Guitar',
     year: '2017',
     medium: 'Mixed media study',
-    poster: '/arts/picasso.jpg',
+    poster: '/arts/picasso.webp',
     video: '/arts/videos/picasso.mp4',
     aspect: 3 / 4,
   },
 ];
 
 const CATS = [
-  { id: 'gray-cat',   title: '灰猫与门', src: '/arts/gray-cat.jpg' },
-  { id: 'curled',     title: '沉睡之蜷', src: '/arts/curled.jpg' },
-  { id: 'orange-cat', title: '草坪之橘', src: '/arts/orange-cat.jpg' },
+  { id: 'gray-cat',   title: '灰猫与门', src: '/arts/gray-cat.webp' },
+  { id: 'curled',     title: '沉睡之蜷', src: '/arts/curled.webp' },
+  { id: 'orange-cat', title: '草坪之橘', src: '/arts/orange-cat.webp' },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -102,6 +103,7 @@ const CATS = [
 export default function Arts() {
   const [entered, setEntered] = useState(false);
   const audioUnlocked = useAudioUnlock();
+  useScrollToHash();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
@@ -265,7 +267,8 @@ function PaintingFrame({
   return (
     <article
       ref={wrapRef}
-      className="mb-[22vh] md:mb-[28vh] last:mb-0"
+      id={piece.id}
+      className="mb-[22vh] md:mb-[28vh] last:mb-0 scroll-mt-[12vh]"
       style={{
         opacity: shown ? 1 : 0,
         transform: shown ? 'translateY(0)' : 'translateY(40px)',
@@ -458,7 +461,8 @@ function CatTriptych() {
   return (
     <article
       ref={wrapRef}
-      className="mb-0"
+      id="cats"
+      className="mb-0 scroll-mt-[12vh]"
       style={{
         opacity: shown ? 1 : 0,
         transform: shown ? 'translateY(0)' : 'translateY(40px)',
@@ -496,6 +500,8 @@ function CatTriptych() {
             <img
               src={c.src}
               alt=""
+              loading="lazy"
+              decoding="async"
               draggable={false}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
               style={{ userSelect: 'none' }}
@@ -577,7 +583,8 @@ function SculpturePolyptych({ audioUnlocked }: { audioUnlocked: boolean }) {
   return (
     <article
       ref={wrapRef}
-      className="mb-[22vh] md:mb-[28vh]"
+      id="sculpture"
+      className="mb-[22vh] md:mb-[28vh] scroll-mt-[12vh]"
       style={{
         opacity: shown ? 1 : 0,
         transform: shown ? 'translateY(0)' : 'translateY(40px)',
@@ -609,8 +616,10 @@ function SculpturePolyptych({ audioUnlocked }: { audioUnlocked: boolean }) {
         {/* front view */}
         <div className="relative overflow-hidden" style={{ background: '#0a0710' }}>
           <img
-            src="/arts/sculpture-front.jpg"
+            src="/arts/sculpture-front.webp"
             alt=""
+            loading="lazy"
+            decoding="async"
             draggable={false}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
             style={{ userSelect: 'none' }}
@@ -624,8 +633,10 @@ function SculpturePolyptych({ audioUnlocked }: { audioUnlocked: boolean }) {
         {/* side view */}
         <div className="relative overflow-hidden" style={{ background: '#0a0710' }}>
           <img
-            src="/arts/sculpture-side.jpg"
+            src="/arts/sculpture-side.webp"
             alt=""
+            loading="lazy"
+            decoding="async"
             draggable={false}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
             style={{ userSelect: 'none' }}

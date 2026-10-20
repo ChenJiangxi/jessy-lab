@@ -30,6 +30,8 @@ export type ToolCall = { name: string; args: Record<string, unknown> };
 export type StreamHandlers = {
   onDelta: (chunk: string) => void;
   onTool?: (call: ToolCall) => void;
+  /** Site paths / URLs the server attached to this reply. */
+  onLinks?: (links: string[]) => void;
   onDone?: () => void;
   onError?: (err: Error) => void;
   signal?: AbortSignal;
@@ -72,6 +74,8 @@ export async function streamChat(req: ChatRequest, handlers: StreamHandlers): Pr
         const parsed = JSON.parse(data);
         if (currentEvent === 'delta' && typeof parsed.content === 'string') {
           handlers.onDelta(parsed.content);
+        } else if (currentEvent === 'links' && Array.isArray(parsed.links)) {
+          handlers.onLinks?.(parsed.links.filter((l: unknown) => typeof l === 'string'));
         } else if (currentEvent === 'tool') {
           handlers.onTool?.({ name: parsed.name, args: parsed.args ?? {} });
         } else if (currentEvent === 'done') {

@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AmbientBackdrop from '../scene/AmbientBackdrop';
 import { BrandMark } from '../components/BrandMark';
 import VideoHead from '../scene/VideoHead';
 import { streamChat } from '../lib/chat';
 import { getSessionId } from '../lib/session';
 import { speak, stopAudio, unlockAudio } from '../lib/tts';
+import { ChatText, LinkChips } from '../components/ChatText';
+import { RESEARCH_URL } from '../lib/links';
 
-type Turn = { role: 'user' | 'assistant'; content: string };
+/** `links`: pages the server attached to this reply (e.g. the project card
+ *  behind a reveal_project call), shown as chips even if the text omits them. */
+type Turn = { role: 'user' | 'assistant'; content: string; links?: string[] };
 
 /**
  * Cold-start greeting — shown verbatim to first-time visitors (empty
@@ -16,7 +20,8 @@ type Turn = { role: 'user' | 'assistant'; content: string };
  * visitor types or taps a chip first, the greeting stays on screen but
  * isn't voiced — `ask()` suppresses it so we don't talk over their reply.
  */
-const GREETING = '嗨——你来了。我是 Jessy 的数字自我，可以聊聊我的研究、艺术，或者别的什么。';
+const GREETING =
+  '嗨——你来了。我是 Jessy 的数字自我，可以聊聊我的研究、艺术，或者别的什么。想直接看作品的话，项目在 /projects，画在 /arts。';
 
 /**
  * Suggestion chip pool — always shown above the input (B variant: a
@@ -60,6 +65,9 @@ const SUGGESTIONS_POOL = [
   'agent 这波怎么看',
   'AI 能取代程序员吗',
   // 项目
+  '看看你的作品',
+  '璇玑是什么',
+  '断联是什么',
   'AuraMate 是什么',
   'FateCouncil 是什么',
   'MangPai 在做什么',
@@ -85,6 +93,7 @@ const SUGGESTIONS_POOL = [
   'Blade Runner 看几遍了',
   '推荐一部小众电影',
   '画里在画什么',
+  '看看你的画',
   '色彩有偏好吗',
   // 日常 / 生活
   '累了你做什么',
@@ -98,6 +107,9 @@ const SUGGESTIONS_POOL = [
   '上海最爱的角落',
   '失眠怎么办',
 ];
+
+/** A bare site path typed into the chat box opens that page directly. */
+const SITE_PATH = /^\/(projects|arts|contact|research)(#[a-z0-9-]+)?$/i;
 
 /** Pick N items from arr without repeats — used for the chip rotation. */
 function sampleN<T>(arr: T[], n: number): T[] {
@@ -170,6 +182,7 @@ export default function V2() {
   const streamingRef = useRef<boolean>(false);
 
   const time = useBeijingTime();
+  const navigate = useNavigate();
 
   // Boot — load chat history. New visitors (empty history) get a greeting
   // line injected into the chat so the panel isn't blank on arrival; the
@@ -347,9 +360,12 @@ export default function V2() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Leaving the page (e.g. tapping a link in a reply) ends the turn and
+  // the voice with it.
   useEffect(
     () => () => {
       abortRef.current?.abort();
+      stopAudio();
     },
     [],
   );
@@ -357,6 +373,13 @@ export default function V2() {
   const ask = async (raw: string) => {
     const text = raw.trim();
     if (!text || streamingRef.current) return;
+
+    // Visitors type "/projects" into the box expecting it to open the page.
+    if (SITE_PATH.test(text)) {
+      setInput('');
+      navigate(text.toLowerCase());
+      return;
+    }
 
     // Visitor is starting a turn — detach any pending greeting listeners
     // so the bubbled window-click doesn't fire greeting TTS that we'd
@@ -396,6 +419,16 @@ export default function V2() {
           onDelta: (chunk) => {
             pendingRef.current += chunk;
             fullContent += chunk;
+          },
+          onLinks: (links) => {
+            setTurns((prev) => {
+              const copy = prev.slice();
+              const last = copy[copy.length - 1];
+              if (last?.role === 'assistant') {
+                copy[copy.length - 1] = { ...last, links };
+              }
+              return copy;
+            });
           },
           onError: (err) => setError(err.message),
         },
@@ -514,7 +547,7 @@ export default function V2() {
         <Link to="/arts" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">ARTS</Link>
         <span className="mx-2 text-[#f4ecdc]/18">·</span>
         <a
-          href="https://chenjiangxi.github.io/home-page/"
+          href={RESEARCH_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors"
@@ -681,7 +714,7 @@ export default function V2() {
                     </div>
                   </div>
                 ) : (
-                  <div key={i} className="flex justify-start">
+                  <div key={i} className="flex flex-col items-start">
                     <div
                       className="max-w-[82%] px-3.5 py-2 font-sans text-[12px] md:text-[13.5px] text-[#f4ecdc]/88 leading-[1.6]"
                       style={{
@@ -691,11 +724,14 @@ export default function V2() {
                         borderRadius: '4px 14px 14px 14px',
                       }}
                     >
-                      {t.content}
+                      <ChatText text={t.content} />
                       {streaming && i === turns.length - 1 && (
                         <span className="inline-block w-[2px] h-[0.85em] ml-1 bg-[#c8a5ff]/85 align-middle animate-pulse" />
                       )}
                     </div>
+                    {!(streaming && i === turns.length - 1) && (
+                      <LinkChips text={t.content} extra={t.links} />
+                    )}
                   </div>
                 ),
               )}
@@ -871,7 +907,7 @@ function MobileNav() {
               ARTS
             </Link>
             <a
-              href="https://chenjiangxi.github.io/home-page/"
+              href={RESEARCH_URL}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}

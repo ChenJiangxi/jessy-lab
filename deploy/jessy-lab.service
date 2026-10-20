@@ -1,0 +1,19 @@
+[Unit]
+Description=jessy-lab (vite preview: built dist/ + chat / tts / admin api plugins)
+After=network.target
+
+[Service]
+Type=simple
+User=jessy
+Group=jessy
+WorkingDirectory=/home/jessy/personal-site
+ExecStart=/usr/bin/env pnpm preview --host 127.0.0.1 --port 5173 --strictPort
+Environment=NODE_ENV=production
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

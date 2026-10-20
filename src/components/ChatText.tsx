@@ -35,9 +35,11 @@ const CHIP_STYLE: CSSProperties = {
   border: '1px solid rgba(200,165,255,0.38)',
 };
 
-/** Reply text with paths / URLs / emails rendered as links. */
+/** Reply text with paths / URLs / emails rendered as links. The model
+ *  sometimes slips in **bold** despite the prompt; a person texting
+ *  wouldn't, so the markers are dropped. */
 export function ChatText({ text }: { text: string }) {
-  const segments = useMemo(() => parseLinks(text), [text]);
+  const segments = useMemo(() => parseLinks(text.replace(/\*\*(.+?)\*\*/g, '$1')), [text]);
   return (
     <>
       {segments.map((s, i) =>

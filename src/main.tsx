@@ -16,16 +16,14 @@ function Page({ children }: { children: React.ReactNode }) {
   );
 }
 // Self-hosted fonts (replaces fonts.googleapis.com, blocked from mainland).
+// Only weight 400 is imported for Noto Sans SC / JetBrains Mono: nothing on
+// the site sets another weight, and each extra Noto weight added ~118 KB of
+// render-blocking @font-face rules to the CSS.
 import '@fontsource-variable/inter';
 import '@fontsource-variable/bricolage-grotesque';
 import '@fontsource-variable/fraunces';
-import '@fontsource/jetbrains-mono/300.css';
 import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
-import '@fontsource/noto-sans-sc/300.css';
 import '@fontsource/noto-sans-sc/400.css';
-import '@fontsource/noto-sans-sc/500.css';
-import '@fontsource/noto-sans-sc/600.css';
 import './styles.css';
 
 /** /research is just a hard redirect to the academic homepage —

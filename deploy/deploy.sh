@@ -14,7 +14,7 @@ if ! cmp -s deploy/jessy-lab.service /etc/systemd/system/jessy-lab.service; then
 fi
 systemctl restart jessy-lab
 for i in $(seq 1 20); do
-  if curl -fsS -o /dev/null http://127.0.0.1:5173/; then
+  if curl -fsS -o /dev/null http://127.0.0.1:5173/ 2>/dev/null; then
     echo "jessy-lab up after ${i}s"
     exit 0
   fi

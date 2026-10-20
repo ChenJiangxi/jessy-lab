@@ -88,7 +88,7 @@ const PROJECTS: ProjectData[] = [
     urlLabel: 'xuanji.life',
     hue: 'gold',
     frame: 'browser',
-    visual: { kind: 'image', src: '/projects/xuanji.webp', objectFit: 'cover', objectPosition: 'center' },
+    visual: { kind: 'image', src: '/projects/xuanji-dark.webp', objectFit: 'cover', objectPosition: 'center' },
   },
   {
     id: 'duanlian',

@@ -81,9 +81,8 @@ type ProjectData = {
     | { kind: 'phones'; screens: PhoneScreen[] };
 };
 
-/** One app screen, 9:19.5. `island: false` when the screenshot already has
- *  its own status bar and Dynamic Island baked in. */
-type PhoneScreen = { src: string; alt: string; island?: boolean };
+/** One app screen, ~9:19.5, top ~5% left for the Dynamic Island of the bezel. */
+type PhoneScreen = { src: string; alt: string };
 
 const PROJECTS: ProjectData[] = [
   {
@@ -115,9 +114,9 @@ const PROJECTS: ProjectData[] = [
     visual: {
       kind: 'phones',
       screens: [
-        { src: '/projects/duanlian.webp', alt: '断联 · 今天：给这段关系立的碑', island: false },
-        { src: '/projects/duanlian-moon.webp', alt: '断联 · 月亮：想说的话对月亮说', island: false },
-        { src: '/projects/duanlian-pause.webp', alt: '断联 · 想联系 TA：先写下来缓一缓', island: false },
+        { src: '/projects/duanlian-main.webp', alt: '断联 · 今天：断联第 272 天，给这段关系立的碑' },
+        { src: '/projects/duanlian-moon.webp', alt: '断联 · 月亮：想说的话对月亮说' },
+        { src: '/projects/duanlian-pause.webp', alt: '断联 · 想联系 TA：先写下来缓一缓' },
       ],
     },
   },
@@ -136,7 +135,7 @@ const PROJECTS: ProjectData[] = [
     visual: {
       kind: 'phones',
       screens: [
-        { src: '/projects/auramate-chat.webp', alt: 'AuraMate · 和灵体对话' },
+        { src: '/projects/auramate-main.webp', alt: 'AuraMate · 灵体与对话：从我的命盘看，我适合创业吗' },
         { src: '/projects/auramate-home.webp', alt: 'AuraMate · 首页' },
         { src: '/projects/auramate-mingpu.webp', alt: 'AuraMate · 命谱' },
       ],
@@ -722,7 +721,7 @@ function PhoneCluster({ screens, hue }: { screens: PhoneScreen[]; hue: Accent })
             filter: 'brightness(0.68) saturate(0.9)',
           }}
         >
-          <PhoneDevice hue={hue} island={s.island} delay={`${-3 - i * 2}s`} glow={false}>
+          <PhoneDevice hue={hue} delay={`${-3 - i * 2}s`} glow={false}>
             <PhoneScreenImg screen={s} />
           </PhoneDevice>
         </div>
@@ -735,7 +734,7 @@ function PhoneCluster({ screens, hue }: { screens: PhoneScreen[]; hue: Accent })
           transform: 'translateX(-50%)',
         }}
       >
-        <PhoneDevice hue={hue} island={front.island}>
+        <PhoneDevice hue={hue}>
           <PhoneScreenImg screen={front} />
         </PhoneDevice>
       </div>
@@ -751,59 +750,58 @@ function PhoneScreenImg({ screen }: { screen: PhoneScreen }) {
       loading="lazy"
       decoding="async"
       draggable={false}
-      className="absolute inset-0 w-full h-full select-none"
-      style={{ objectFit: 'cover', objectPosition: 'center top', userSelect: 'none' }}
+      className="absolute select-none"
+      style={{
+        // screen rectangle inside /devices/iphone-silver.webp
+        left: '5.10204%',
+        top: '2.2%',
+        width: '89.79592%',
+        height: '95.6%',
+        objectFit: 'cover',
+        objectPosition: 'center top',
+        userSelect: 'none',
+      }}
     />
   );
 }
 
+/**
+ * Real iPhone template, same assets as duanlianapp.cn: the screenshot sits
+ * in the screen rectangle, clipped by the rounded-corner mask, and the
+ * silver bezel (with its Dynamic Island) is laid on top.
+ */
 function PhoneDevice({
   hue,
-  island = true,
   glow = true,
   delay = '0s',
   children,
 }: {
   hue: Accent;
-  island?: boolean;
   glow?: boolean;
   delay?: string;
   children: ReactNode;
 }) {
+  const mask = "url('/devices/iphone-screen-mask.png') center / 100% 100% no-repeat";
   return (
     <div
       className="relative w-full"
       style={{
-        aspectRatio: '9 / 19.5',
-        borderRadius: 38,
-        padding: 7,
-        background: 'linear-gradient(140deg, #1c1628, #07050d)',
-        border: '1px solid rgba(240,232,220,0.10)',
-        boxShadow:
-          '0 30px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.5)' +
-          (glow ? `, 0 0 80px ${accentSoft(hue, 0.16)}` : ''),
+        aspectRatio: '1470 / 3000',
+        filter:
+          'drop-shadow(0 26px 28px rgba(0,0,0,0.55))' +
+          (glow ? ` drop-shadow(0 0 36px ${accentSoft(hue, 0.22)})` : ''),
         animation: `pj_drift 9s ease-in-out ${delay} infinite`,
       }}
     >
-      {/* metal-edge inner band */}
-      <div
-        className="absolute inset-1.5 pointer-events-none"
-        style={{ borderRadius: 32, border: '1px solid rgba(240,232,220,0.05)' }}
-      />
-      {/* screen */}
-      <div className="relative w-full h-full overflow-hidden" style={{ borderRadius: 31, background: '#000' }}>
+      <div className="absolute inset-0" style={{ mask, WebkitMask: mask }}>
         {children}
-        {island && (
-          <div
-            className="absolute left-1/2 -translate-x-1/2 top-[1.6%] z-10 rounded-full pointer-events-none"
-            style={{ width: '31%', height: '3.6%', background: '#000' }}
-          />
-        )}
       </div>
-      {/* side button hint */}
-      <div
-        className="absolute -right-[2px] top-[28%] w-[2px] h-12 rounded-l"
-        style={{ background: 'rgba(240,232,220,0.10)' }}
+      <img
+        src="/devices/iphone-silver.webp"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="absolute inset-0 w-full h-full pointer-events-none select-none"
       />
     </div>
   );

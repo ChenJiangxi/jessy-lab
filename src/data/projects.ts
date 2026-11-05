@@ -134,6 +134,18 @@ export const PROJECTS: Project[] = [
     year: '2025',
   },
   {
+    id: 'temple',
+    kind: 'workshop',
+    name: 'Temple',
+    chineseName: '寺',
+    url: 'https://temple.jessylab.cc',
+    tagline: '一座刻着心经的小寺，日光穿过字孔落在柱上。',
+    description:
+      '外壳刻着心经和万字纹，日光穿过字孔落在圆柱上，春分正午穿过屋顶的万字开孔落在白玉佛身上；一层礼佛，二层静坐，雨水沿雨链落进接雨瓶。照着原作的 CAD 图纸和实体模型照片在浏览器里重建，可以换视角、换季节和夜景、把时间加速看光影移动，也能和原作照片对照。',
+    accent: 'from-rose-300 via-orange-300 to-amber-200',
+    year: '2026',
+  },
+  {
     id: 'personal-site',
     kind: 'workshop',
     name: 'This Site',

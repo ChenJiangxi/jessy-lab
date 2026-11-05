@@ -37,7 +37,8 @@ type Accent =
   | 'ember'
   | 'sky'
   | 'indigo'
-  | 'lavender';
+  | 'lavender'
+  | 'vermilion';
 
 const ACCENT: Record<Accent, string> = {
   gold: 'rgba(240,200,130,0.90)',
@@ -49,6 +50,7 @@ const ACCENT: Record<Accent, string> = {
   sky: 'rgba(140,200,255,0.88)',
   indigo: 'rgba(168,200,255,0.85)',
   lavender: 'rgba(200,180,255,0.85)',
+  vermilion: 'rgba(255,128,104,0.88)',
 };
 
 const accentSoft = (h: Accent, alpha: number): string =>
@@ -60,7 +62,7 @@ const accentSoft = (h: Accent, alpha: number): string =>
 
 type ProjectData = {
   id: string;
-  index: string; // P-001..P-009
+  index: string; // P-001..P-010
   en: string;
   zh: string;
   tagline: string;
@@ -232,10 +234,25 @@ const PROJECTS: ProjectData[] = [
     frame: 'browser',
     visual: { kind: 'signature', render: () => <RainVisual /> },
   },
+  {
+    id: 'temple',
+    index: 'P-010',
+    en: 'Temple',
+    zh: '寺 · 光 与 空 间',
+    tagline: 'Sunlight through the sutra, onto the pillar.',
+    body: '一座小寺，外壳刻着心经和万字纹。日光穿过字孔落在柱上，穿过屋顶落在白玉佛身上。照着原作的 CAD 图纸和实体模型照片，在浏览器里把它重新建了一遍：可以绕着看，也可以走进殿里。',
+    tech: '春分、夏至、秋分、冬至、夜景随手切换，把时间加速，看经文的影子跟着太阳在柱上移动；随时和原作照片对照。',
+    url: 'https://temple.jessylab.cc',
+    urlLabel: 'temple.jessylab.cc',
+    hue: 'vermilion',
+    frame: 'browser',
+    aspect: '1440 / 900',
+    visual: { kind: 'image', src: '/projects/temple.webp', objectFit: 'cover', objectPosition: 'center' },
+  },
 ];
 
 type ChapterData = {
-  num: 'I' | 'II' | 'III' | 'IV';
+  num: 'I' | 'II' | 'III' | 'IV' | 'V';
   zh: string;
   en: string;
   rationale: string;
@@ -270,6 +287,13 @@ const CHAPTERS: ChapterData[] = [
     en: 'IN THE FOG',
     rationale: '把电影的某一帧抽出来，让它一直停在那里。',
     ids: ['tears-in-rain', 'rainscripts'],
+  },
+  {
+    num: 'V',
+    zh: '空 间',
+    en: 'LIGHT & SPACE',
+    rationale: '把只存在于图纸和模型里的一座小寺重新建起来，让日光照进去。',
+    ids: ['temple'],
   },
 ];
 

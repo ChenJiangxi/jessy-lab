@@ -12,18 +12,22 @@ The 2026-11-05 redesign replaces the repeated alternating project spreads with t
 
 - A cover introduces the work with actual project previews and two explicit actions: start the exhibition or open the directory.
 - Ten existing works retain their descriptions, screenshots, device frames and external URLs. The five rooms remain 上线、命理、玩具、雨夜、空间.
-- Desktop uses normal vertical scrolling to move along a horizontal exhibition. Chapter walls, a continuous floor and a warm paper pinboard for the two toys distinguish the sections.
-- The directory shows all ten works and jumps directly to the selected exhibit. Chapter controls and previous/next buttons provide alternatives to scrolling.
-- Phones, short screens and visitors requesting reduced motion use native vertical scrolling. The chapter controls and directory remain available.
+- Every viewport uses native vertical document scrolling. Chapter walls, oversized room numbers and a warm paper pinboard for the two toys distinguish the sections.
+- The directory shows all ten works and jumps directly to the selected exhibit. Chapter controls provide direct jumps alongside scrolling.
+- Desktop and phone layouts share the same vertical flow. The chapter controls and directory remain available; reduced motion disables visual transitions.
 
 ## Navigation and accessibility
 
 - Existing `/projects#<id>` URLs remain valid, including links from chat and same-document hash changes. Unknown hashes and `personal-site` open the cover.
-- URL anchors are resolved through `data-anchor`; DOM ids have a `gallery-` prefix so native fragment scrolling cannot independently move the clipped horizontal stage.
-- Keyboard focus on an offscreen work brings that work into view. The native directory dialog supports Escape, focus containment and focus return.
-- Horizontal movement updates in a scheduled animation frame after scroll events. It does not intercept wheel or touch gestures, and no animation loop runs while idle.
+- Work ids are real document anchors. Existing hash links align below the fixed header, including same-document navigation; a late font load does not reset scrolling after a user gesture.
+- Keyboard focus and PageDown use normal browser scrolling. The native directory dialog supports Escape, focus containment and focus return.
+- Scroll observation updates only the chapter highlight and ambient color. It does not translate the content, create an artificial page height, or capture wheel/touch gestures.
 - The gallery has semantic sections and articles, visible focus styles, descriptive navigation labels and a skip link. Reduced motion uses the vertical layout without transitions.
 
 ## Scope
 
 No chat API, production credentials, live agent prompt, database schema or project tool data changes are part of this redesign. Existing artwork and contact routes retain their behavior. The earlier untracked exhibition study remains separate.
+
+## 2026-11-05 scrolling correction
+
+The initial desktop exhibition mapped an inner vertical scroller to horizontal movement. A horizontal swipe did not advance the work, and the document itself remained one viewport tall. Following the reported scrolling problem, this behavior was removed. The page now scrolls with the document on every screen, while retaining the cover, five chapters, directory and toy pinboard.

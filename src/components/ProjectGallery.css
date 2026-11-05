@@ -1,6 +1,6 @@
 .project-gallery {
   --gallery-color: rgba(185,157,217,.65); --gallery-ink: #f0e8dc;
-  position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; color-scheme: dark;
+  position: relative; min-height: 100svh; overflow: clip; color-scheme: dark;
   background: #120e19; color: var(--gallery-ink); scrollbar-color: #8b779550 transparent;
   font-family: 'Inter', 'Noto Sans SC', sans-serif; isolation: isolate;
 }
@@ -14,9 +14,8 @@
 .gallery-skip { position: fixed; top: -100px; left: 28px; z-index: 100; padding: 12px 20px; background: #f0e8dc; color: #120e19; }
 .gallery-skip:focus { top: 15px; }
 .gallery-hall { position: relative; }
-.gallery-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
-.gallery-track { position: absolute; height: 100%; left: 0; top: 0; display: flex; align-items: stretch; width: max-content; will-change: transform; }
-.gallery-floor { position: absolute; z-index: 0; left: 0; right: 0; top: 77%; height: 23%; border-top: 1px solid #f0e8dc0d; background: linear-gradient(#f0e8dc03, transparent); pointer-events: none; }
+.gallery-stage { position: relative; }
+.gallery-track { position: relative; width: 100%; }
 .gallery-chapter { display: contents; }
 .gallery-intro, .gallery-chapter-wall, .gallery-exhibit, .gallery-toy-room, .gallery-exit { position: relative; flex: none; height: 100%; }
 .gallery-eyebrow { font: 9px 'JetBrains Mono', monospace; letter-spacing: .18em; color: #c8b8d5; display: flex; gap: 17px; align-items: center; }
@@ -103,7 +102,6 @@
 .gallery-exit-actions { margin-top: 30px; display: flex; gap: 25px; align-items: center; }
 .gallery-exit-signature { margin-top: 35px; font: italic 24px ui-serif, serif; color: #877293; transform: rotate(-8deg); }
 .gallery-controls { position: fixed; z-index: 45; bottom: 25px; left: 50%; transform: translateX(-50%); min-height: 58px; padding: 6px 10px; display: flex; align-items: center; gap: 10px; border: 1px solid #ddc3ed26; border-radius: 12px; background: #201728e8; backdrop-filter: blur(22px); box-shadow: 0 12px 40px #0004; white-space: nowrap; }
-.gallery-horizontal .gallery-controls::after { content: ''; position: absolute; left: 11px; right: 11px; bottom: 0; height: 1px; background: #d5b6e87a; transform-origin: left; transform: scaleX(var(--gallery-progress, 0)); }
 .gallery-controls button { min-height: 42px; border-radius: 6px; transition: background 180ms, color 180ms; }
 .gallery-directory-toggle { display: flex; align-items: center; gap: 8px; padding: 0 12px; color: #dfcbea; font-size: 11px; }
 .gallery-controls button:hover { background: #e3cbf018; color: #fff; }
@@ -112,11 +110,7 @@
 .gallery-chapter-nav button { padding: 0 15px; color: #a795b3; font-size: 11px; }
 .gallery-chapter-nav button > span { margin-right: 7px; font: 9px 'JetBrains Mono', monospace; opacity: .5; }
 .gallery-chapter-nav button[aria-current='step'] { background: #d5b6e821; color: #f2e4fa; }
-.gallery-stepper { display: flex; gap: 4px; align-items: center; }
-.gallery-stepper button { width: 40px; font-size: 17px; color: #d1b9df; }
-.gallery-work-counter { padding: 0 10px; font: 10px 'JetBrains Mono', monospace; color: #ebdaf3; }
-.gallery-work-counter > span { color: #8e779e; }
-.gallery-directory { position: fixed; inset: 0; margin: auto; padding: 30px; width: min(1140px, calc(100% - 64px)); max-height: calc(100svh - 64px); overflow-y: auto; background: #1d1625; color: #f0e8dc; border: 1px solid #d3b8e23d; border-radius: 12px; box-shadow: 0 30px 100px #0008; }
+.gallery-directory { overscroll-behavior: contain; position: fixed; inset: 0; margin: auto; padding: 30px; width: min(1140px, calc(100% - 64px)); max-height: calc(100svh - 64px); overflow-y: auto; background: #1d1625; color: #f0e8dc; border: 1px solid #d3b8e23d; border-radius: 12px; box-shadow: 0 30px 100px #0008; }
 .gallery-directory::backdrop { background: #09050de0; backdrop-filter: blur(10px); }
 .gallery-directory-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
 .gallery-directory-heading h2 { margin-top: 12px; font: 400 28px 'Noto Serif SC', 'Songti SC', serif; letter-spacing: .06em; }
@@ -145,12 +139,10 @@
   .gallery-controls { gap: 6px; }
   .gallery-chapter-nav button { padding: 0 12px; }
 }
-/* The same exhibits become a native vertical walk on phones, short screens,
-   and when the visitor requests reduced motion. No wheel/touch interception. */
+/* Every viewport uses the document's native vertical scroll. */
 .gallery-linear .gallery-hall { padding-bottom: 100px; }
 .gallery-linear .gallery-stage { position: relative; height: auto; overflow: visible; }
 .gallery-linear .gallery-track { position: relative; height: auto; width: 100%; display: block; will-change: auto; }
-.gallery-linear .gallery-floor { display: none; }
 .gallery-linear .gallery-intro { min-height: 850px; height: auto; grid-template-columns: 1.1fr 1fr; padding-top: 150px; padding-bottom: 150px; }
 .gallery-linear .gallery-cover-footer { bottom: 80px; }
 .gallery-linear .gallery-chapter { display: block; max-width: 1300px; margin: auto; }
@@ -170,7 +162,6 @@
 .gallery-linear .gallery-sticker { width: 42%; margin-top: 0; }
 .gallery-linear .gallery-sticker-visual { --toy-shot-height: 230px; }
 .gallery-linear .gallery-exit { width: 100%; height: auto; min-height: 680px; }
-.gallery-linear .gallery-stepper, .gallery-linear .gallery-controls-desktop { display: none; }
 @media (max-width: 900px) {
   .gallery-header { height: 72px; padding: 0 23px; background: #120e19df; backdrop-filter: blur(12px); border-bottom: 1px solid #d8c4e80b; }
   .gallery-linear .gallery-intro { min-height: 740px; padding: 115px 6vw 115px; }
@@ -258,3 +249,7 @@
 @media (prefers-reduced-motion: reduce) {
   .project-gallery *, .project-gallery *::before, .project-gallery *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+html:has(.project-gallery) { color-scheme: dark; scrollbar-color: #8b7795 transparent; }
+html:has(.gallery-directory[open]) { overflow-y: hidden; }
+.project-gallery [data-stop] { scroll-margin-top: 86px; }

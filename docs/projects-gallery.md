@@ -12,22 +12,27 @@ The 2026-11-05 redesign replaces the repeated alternating project spreads with t
 
 - A cover introduces the work with actual project previews and two explicit actions: start the exhibition or open the directory.
 - Ten existing works retain their descriptions, screenshots, device frames and external URLs. The five rooms remain 上线、命理、玩具、雨夜、空间.
-- Every viewport uses native vertical document scrolling. Chapter walls, oversized room numbers and a warm paper pinboard for the two toys distinguish the sections.
-- The directory shows all ten works and jumps directly to the selected exhibit. Chapter controls provide direct jumps alongside scrolling.
-- Desktop and phone layouts share the same vertical flow. The chapter controls and directory remain available; reduced motion disables visual transitions.
+- Every viewport uses native horizontal scrolling: visitors swipe left/right, use a horizontal trackpad gesture, or drag with the mouse. Chapter walls, oversized room numbers and a warm paper pinboard for the two toys distinguish the sections.
+- The directory shows all ten works and jumps directly to the selected exhibit. Chapter controls, previous/next buttons and the directory provide direct jumps alongside swiping.
+- Desktop and phone layouts share the same horizontal exhibition. Long exhibits can scroll vertically inside their own panel so their full descriptions remain readable. Reduced motion keeps horizontal browsing and makes programmatic jumps immediate.
 
 ## Navigation and accessibility
 
 - Existing `/projects#<id>` URLs remain valid, including links from chat and same-document hash changes. Unknown hashes and `personal-site` open the cover.
-- Work ids are real document anchors. Existing hash links align below the fixed header, including same-document navigation; a late font load does not reset scrolling after a user gesture.
-- Keyboard focus and PageDown use normal browser scrolling. The native directory dialog supports Escape, focus containment and focus return.
-- Scroll observation updates only the chapter highlight and ambient color. It does not translate the content, create an artificial page height, or capture wheel/touch gestures.
-- The gallery has semantic sections and articles, visible focus styles, descriptive navigation labels and a skip link. Reduced motion uses the vertical layout without transitions.
+- URL work ids resolve to matching data-anchor targets in the horizontal scroller. DOM ids use a gallery prefix to prevent native fragment handling from competing with centered jumps. Hashes and repeated route selections both work; late fonts cannot reset a visitor's gesture.
+- Left/right arrow keys move between exhibits; Home and End reach the cover and exit. Native focus scrolling and focus alignment bring offscreen links into view. The native directory dialog supports Escape, focus containment and focus return.
+- The real scrollLeft is the exhibition position. No translated track or artificial vertical page height is used. Native horizontal wheel/touch scrolling remains browser-owned; pointer capture adds mouse dragging with a movement threshold and suppresses accidental clicks after a drag.
+- The gallery has semantic sections and articles, visible focus styles, descriptive navigation labels and a skip link. Reduced motion preserves the requested horizontal direction without animated jumps.
 
 ## Scope
 
 No chat API, production credentials, live agent prompt, database schema or project tool data changes are part of this redesign. Existing artwork and contact routes retain their behavior. The earlier untracked exhibition study remains separate.
 
-## 2026-11-05 scrolling correction
+## Horizontal input
 
-The initial desktop exhibition mapped an inner vertical scroller to horizontal movement. A horizontal swipe did not advance the work, and the document itself remained one viewport tall. Following the reported scrolling problem, this behavior was removed. The page now scrolls with the document on every screen, while retaining the cover, five chapters, directory and toy pinboard.
+- Phone swipes in both directions move the native horizontal scroller.
+- Horizontal trackpad/wheel input uses the browser's normal scrolling. Pointer capture adds mouse dragging without changing touch handling; a movement threshold prevents accidental link activation after a drag.
+- Left/right buttons and arrow keys select adjacent stops. Home and End reach the cover and exit. Browser modifier shortcuts remain available.
+- Each exhibit can scroll vertically when its full copy does not fit. Its horizontal overflow is hidden so decorative images cannot consume the horizontal gesture before it reaches the gallery.
+- The directory scrolls vertically and keeps the background gallery still while open.
+- All screen widths retain horizontal browsing, including reduced-motion mode.

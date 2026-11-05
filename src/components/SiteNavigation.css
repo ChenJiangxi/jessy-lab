@@ -1,0 +1,45 @@
+.site-navigation { color: #f4ecdc; font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+.site-navigation-item { display: flex; align-items: center; gap: 13px; position: relative; text-decoration: none; border-radius: 10px; transition: color 180ms, background 180ms, border-color 180ms; }
+.site-navigation-item:focus-visible { outline: 2px solid #d4b9fa; outline-offset: 4px; }
+.site-navigation-icon { display: grid; place-items: center; opacity: .8; }
+.site-navigation-label { white-space: nowrap; }
+.site-navigation-english, .site-navigation-count, .site-navigation-arrow { font-family: 'JetBrains Mono', monospace; }
+.site-navigation-count { font-size: 10px; opacity: .5; }
+.site-navigation-arrow { margin-left: auto; font-size: 17px; opacity: .55; }
+.site-navigation--home { position: absolute; z-index: 35; top: 126px; left: 28px; width: 185px; }
+.site-navigation-heading { margin: 0 0 14px 14px; font-size: 12px; color: #cfc3df; }
+.site-navigation-heading span { margin-left: 13px; color: #8d829c; font: 8px 'JetBrains Mono', monospace; letter-spacing: .2em; }
+.site-navigation--home .site-navigation-items { display: grid; gap: 7px; }
+.site-navigation--home .site-navigation-item { min-height: 64px; padding: 12px 14px; border: 1px solid transparent; color: #d8cfe2; }
+.site-navigation--home .site-navigation-item:hover { color: #fff4e7; background: #c8a5ff0e; }
+.site-navigation--home .site-navigation-label { font-size: 15px; letter-spacing: .12em; }
+.site-navigation--home .site-navigation-english { display: block; margin-top: 4px; font-size: 8px; letter-spacing: .1em; color: #b6a4cb; }
+.site-navigation--home .site-navigation-item--projects { background: linear-gradient(125deg, #c8a5ff20, #f5b8d60a); border-color: #c8a5ff4d; color: #f6e5ff; box-shadow: 0 8px 30px #0002; }
+.site-navigation--home .site-navigation-item--projects:hover { border-color: #c8a5ff99; background: #c8a5ff25; }
+.site-navigation--header .site-navigation-items { display: flex; gap: 4px; }
+.site-navigation--header .site-navigation-item { min-height: 44px; padding: 0 16px; color: #b5aabb; font-size: 13px; }
+.site-navigation--header .site-navigation-item:hover { color: #f4ecdc; background: #f4ecdc09; }
+.site-navigation--header .site-navigation-item[aria-current='page'] { background: #e3d1f013; color: #f4ecdc; }
+.site-navigation--header .site-navigation-icon, .site-navigation--header .site-navigation-english, .site-navigation--header .site-navigation-arrow { display: none; }
+@media (max-width: 1279px) {
+  .site-navigation--home { position: absolute; top: auto; left: 0; bottom: 0; width: 100%; padding: 6px 12px max(9px, env(safe-area-inset-bottom)); border-top: 1px solid #c8a5ff24; background: linear-gradient(180deg, #0d0818ed, #0d0818); backdrop-filter: blur(18px); }
+  .site-navigation--home .site-navigation-heading { display: none; }
+  .site-navigation--home .site-navigation-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; max-width: 540px; margin: auto; }
+  .site-navigation--home .site-navigation-item { flex-direction: column; gap: 4px; justify-content: center; padding: 7px 4px; min-height: 54px; border-radius: 10px; }
+  .site-navigation--home .site-navigation-label { font-size: 11px; letter-spacing: .1em; }
+  .site-navigation--home .site-navigation-english, .site-navigation--home .site-navigation-arrow { display: none; }
+  .site-navigation--home .site-navigation-count { position: absolute; top: 5px; right: calc(50% - 25px); font-size: 8px; }
+}
+@media (max-width: 600px) {
+  .site-navigation--header .site-navigation-item { min-height: 42px; padding: 0 10px; font-size: 12px; gap: 4px; }
+  .site-navigation--header .site-navigation-count { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .site-navigation * { transition: none !important; } }
+
+.home-main-column { padding-bottom: 3vh; }
+@media (max-width: 1279px) {
+  .home-main-column { padding-bottom: max(92px, calc(80px + env(safe-area-inset-bottom))); }
+}
+@media (max-height: 640px) and (max-width: 1279px) {
+  .home-main-column > div:first-child { width: min(210px, 38svh) !important; }
+}

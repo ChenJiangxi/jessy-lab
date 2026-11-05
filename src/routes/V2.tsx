@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AmbientBackdrop from '../scene/AmbientBackdrop';
 import { BrandMark } from '../components/BrandMark';
 import VideoHead from '../scene/VideoHead';
@@ -7,7 +7,7 @@ import { streamChat } from '../lib/chat';
 import { getSessionId } from '../lib/session';
 import { speak, stopAudio, unlockAudio } from '../lib/tts';
 import { ChatText, LinkChips } from '../components/ChatText';
-import { RESEARCH_URL } from '../lib/links';
+import { SiteNavigation } from '../components/SiteNavigation';
 
 /** `links`: pages the server attached to this reply (e.g. the project card
  *  behind a reveal_project call), shown as chips even if the text omits them. */
@@ -540,31 +540,10 @@ export default function V2() {
         </div>
       </div>
 
-      {/* ── HUD: bottom-right page nav (desktop only) ───── */}
-      <div className="absolute bottom-6 right-6 font-mono text-[10px] tracking-[0.32em] uppercase pointer-events-auto hidden md:block z-30">
-        <Link to="/projects" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">PROJECTS</Link>
-        <span className="mx-2 text-[#f4ecdc]/18">·</span>
-        <Link to="/arts" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">ARTS</Link>
-        <span className="mx-2 text-[#f4ecdc]/18">·</span>
-        <a
-          href={RESEARCH_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors"
-        >
-          RESEARCH
-        </a>
-        <span className="mx-2 text-[#f4ecdc]/18">·</span>
-        <Link to="/contact" className="text-[#f4ecdc]/45 hover:text-[#c8a5ff] transition-colors">CONTACT</Link>
-      </div>
-
-      {/* ── HUD: mobile nav — single MENU toggle, drops a compact panel.
-          Collapsed state takes one short word so the top doesn't crowd
-          the brand on the left or the avatar in the centre. */}
-      <MobileNav />
+      <SiteNavigation variant="home" />
 
       {/* main column */}
-      <div className="absolute inset-0 flex flex-col items-center px-6 pt-[2vh] pb-[3vh] z-20">
+      <div className="home-main-column absolute inset-0 flex flex-col items-center px-6 pt-[2vh] z-20">
         {/* head — cyber HUD frame: chamfered (45°-cut) corner brackets,
             edge tick marks, a slow vertical scan-sweep, and a small
             telemetry rail to the right. Uses preserveAspectRatio="none"
@@ -852,85 +831,5 @@ export default function V2() {
         }
       `}</style>
     </div>
-  );
-}
-
-/* ============================================================================
-   MobileNav — collapsed = single MENU toggle word; opens to a small
-   right-aligned dropdown with the four routes. md:hidden — desktop has
-   its own bottom-right nav and never sees this.
-============================================================================ */
-
-function MobileNav() {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      {/* full-screen backdrop catches outside taps when open */}
-      {open && (
-        <button
-          type="button"
-          aria-label="close menu"
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-30 md:hidden"
-          style={{ background: 'transparent' }}
-        />
-      )}
-      <div className="absolute top-5 right-5 md:hidden z-40 flex flex-col items-end">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="font-mono text-[10px] tracking-[0.4em] uppercase text-[#f4ecdc]/55 active:text-[#c8a5ff] pointer-events-auto"
-          aria-expanded={open}
-          aria-label={open ? 'close menu' : 'open menu'}
-        >
-          {open ? 'CLOSE' : 'MENU'}
-        </button>
-        {open && (
-          <div
-            className="mt-3 flex flex-col items-end gap-2 font-mono text-[10px] tracking-[0.32em] uppercase pointer-events-auto"
-            style={{
-              animation: 'v2_menu_fade 200ms ease-out forwards',
-            }}
-          >
-            <Link
-              to="/projects"
-              onClick={() => setOpen(false)}
-              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
-            >
-              PROJECTS
-            </Link>
-            <Link
-              to="/arts"
-              onClick={() => setOpen(false)}
-              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
-            >
-              ARTS
-            </Link>
-            <a
-              href={RESEARCH_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setOpen(false)}
-              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
-            >
-              RESEARCH
-            </a>
-            <Link
-              to="/contact"
-              onClick={() => setOpen(false)}
-              className="text-[#f4ecdc]/75 active:text-[#c8a5ff]"
-            >
-              CONTACT
-            </Link>
-          </div>
-        )}
-      </div>
-      <style>{`
-        @keyframes v2_menu_fade {
-          0%   { opacity: 0; transform: translateY(-4px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </>
   );
 }
